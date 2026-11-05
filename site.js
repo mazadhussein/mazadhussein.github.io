@@ -1,6 +1,7 @@
 const MARKUP=String.raw`<header class="top"><div class="g">
   <a class="brand" href="#top"><img src="img/emblem.jpg" alt="شعار مزاد حسين"><span>مزاد <b>حسين</b></span></a>
   <nav class="nav" id="nav" aria-label="الأقسام"></nav>
+  <button type="button" class="menu-btn" id="admMenu" aria-label="لوحة المبيعات" hidden>☰</button>
   <button type="button" class="cart-btn" id="cartBtn">السلة<b id="cartN">0</b></button>
   <a class="pill-wa" href="https://wa.me/9647757685741" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2Z"/></svg>احجز واتساب</a>
 </div></header>
@@ -83,6 +84,7 @@ const MARKUP=String.raw`<header class="top"><div class="g">
 </form></dialog>
 <dialog id="ledger"><button class="x" type="button" id="ledgerX" aria-label="إغلاق">×</button><div class="cart-box" id="ledgerBox"></div></dialog>
 <dialog id="guar"><button class="x" type="button" id="guarX" aria-label="إغلاق">×</button><div class="cart-box" id="guarBox"></div></dialog>
+<dialog id="salesPanel"><button class="x" type="button" id="statsX" aria-label="إغلاق">×</button><div id="statsBox"></div></dialog>
 <dialog id="login"><button class="x" type="button" id="loginX" aria-label="إغلاق">×</button><form id="loginF" novalidate>
   <h3>دخول الآدمن</h3>
   <label id="loginOwner">اسم الحساب على GitHub<input name="owner" autocomplete="off" dir="ltr" autocapitalize="off"></label>
@@ -396,7 +398,33 @@ function renderLedger(){if(!$("ledger").open)return;const it=[...Admin.sales].so
     <dl><dt>الزبون</dt><dd>${esc(s.name||"غير مكتوب")}</dd><dt>الرقم</dt><dd dir="ltr" style="text-align:right">${esc(s.phone||"غير مكتوب")}</dd><dt>السعر</dt><dd>${esc(s.price||"غير مكتوب")}</dd><dt>التاريخ</dt><dd dir="ltr" style="text-align:right">${new Date(s.at).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"})}</dd></dl>
     <div class="adm-row"><button type="button" class="adm-btn main" data-guar="${esc(s.id)}">أرسل الضمان</button>${can?`<button type="button" class="adm-btn" data-sale="${s.ringId}" data-kind="sold" data-doc="${esc(s.id)}">تم الشراء</button>`:""}${r?`<button type="button" class="adm-btn" data-sale="${s.ringId}" data-kind="${esc(s.kind)}" data-doc="${esc(s.id)}">تعديل</button>`:""}<button type="button" class="adm-btn danger" data-del="${esc(s.id)}">حذف</button></div></div>`}).join(""):`<p style="margin:0;color:var(--dim)">بعد ما مسجل بيع أو حجز.</p>`)+`<button type="button" class="adm-btn" id="admOut">خروج من الآدمن بهذا الموبايل</button>`;
   $("admOut").onclick=()=>{store.del(KEY_TOKEN);store.del(KEY_OWNER);location.href=location.pathname}}
-function syncSales(){$("admLedger").textContent="المبيعات ("+Admin.sales.length+")";renderLedger()}
+// Sales numbers for the owner. Prices were typed as text, so they are read back here: thousands of dinars, or dollars kept apart.
+function saleMoney(s){const t=latinDigits(String(s.price||"")),m=t.replace(/[,،٬\s]/g,"").match(/\d+(\.\d+)?/);if(!m)return {iqd:0,usd:0};let n=+m[0];if(/دولار|\$/.test(t))return {iqd:0,usd:n};if(n>=1000)n/=1000;return {iqd:n,usd:0}}
+const addMoney=list=>list.reduce((a,s)=>{const m=saleMoney(s);a.iqd+=m.iqd;a.usd+=m.usd;return a},{iqd:0,usd:0});
+const moneyText=m=>[m.iqd?m.iqd.toLocaleString("en-US")+" ألف":"",m.usd?m.usd.toLocaleString("en-US")+" دولار":""].filter(Boolean).join(" + ")||"0";
+// The Iraqi working week starts on Saturday.
+const weekStart=()=>{const x=new Date();x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+1)%7));return +x};
+const monthStart=()=>{const x=new Date();x.setHours(0,0,0,0);x.setDate(1);return +x};
+function topBuyers(sold){const map=new Map();sold.forEach(s=>{const key=waNumber(s.phone)||s.phone||"";if(!key)return;const b=map.get(key)||{key,num:waNumber(s.phone),phone:s.phone,name:"",list:[]};if(s.name)b.name=s.name;b.list.push(s);map.set(key,b)});
+  return [...map.values()].sort((a,b)=>b.list.length-a.list.length||addMoney(b.list).iqd-addMoney(a.list).iqd).slice(0,5)}
+function renderStats(){if(!$("salesPanel").open)return;
+  const sold=Admin.sales.filter(s=>s.kind==="sold"),week=sold.filter(s=>s.at>=weekStart()),month=sold.filter(s=>s.at>=monthStart());
+  const reserved=Admin.sales.filter(s=>s.kind!=="sold"&&byId(s.ringId)&&!byId(s.ringId).sold);
+  const stat=(label,list)=>`<div class="st-card"><span>${label}</span><b>${list.length}</b><small>${moneyText(addMoney(list))}</small></div>`;
+  const all=addMoney(sold),withIqd=sold.filter(s=>saleMoney(s).iqd);
+  const buyers=topBuyers(sold),avail=live(),availValue=avail.reduce((a,r)=>a+(r.price||0),0);
+  const tiers=TIERS.map(t=>({t,n:sold.filter(s=>{const r=byId(s.ringId);return r&&r.t===t.id}).length})).filter(x=>x.n);
+  const logged=new Set(sold.map(s=>s.ringId)),unlogged=R.filter(r=>r.sold&&!logged.has(r.id)).length;
+  $("statsBox").innerHTML=`<div class="st"><h3>لوحة المبيعات</h3><p class="led-note">تشوفها إنت بس. الأسبوع يبدأ من السبت.</p>
+  <div class="st-grid">${stat("هذا الأسبوع",week)}${stat("هذا الشهر",month)}${stat("كل المبيعات",sold)}<div class="st-card"><span>حجوزات مفتوحة</span><b>${reserved.length}</b><small>بانتظار الشراء</small></div></div>
+  <h4>أرقام سريعة</h4><dl class="st-list"><dt>مجموع المبيعات</dt><dd>${moneyText(all)}</dd>${withIqd.length?`<dt>متوسط سعر البيع</dt><dd>${Math.round(addMoney(withIqd).iqd/withIqd.length).toLocaleString("en-US")} ألف</dd>`:""}<dt>خواتم معروضة</dt><dd>${avail.length}</dd><dt>قيمة المعروض</dt><dd>${availValue.toLocaleString("en-US")} ألف</dd></dl>
+  <h4>أكثر الزبائن شراءً</h4>${buyers.length?`<ol class="st-buyers">${buyers.map(b=>`<li><div><b>${esc(b.name||"بدون اسم")}</b><span dir="ltr">${esc(b.phone||"")}</span></div><div class="st-r"><b>${b.list.length} ${b.list.length===1?"خاتم":"خواتم"}</b><small>${moneyText(addMoney(b.list))}</small>${b.num?`<a href="https://wa.me/${b.num}" target="_blank" rel="noopener">واتساب</a>`:""}</div></li>`).join("")}</ol>`:`<p class="led-note">بعد ما مسجل مبيعات.</p>`}
+  ${tiers.length?`<h4>المبيعات حسب الفئة</h4><dl class="st-list">${tiers.map(x=>`<dt>${x.t.name}</dt><dd>${x.n}</dd>`).join("")}</dl>`:""}
+  ${sold.length?`<h4>آخر المبيعات</h4><ul class="st-last">${[...sold].sort((a,b)=>b.at-a.at).slice(0,5).map(s=>`<li><span>رقم ${esc(s.no)} · ${esc(s.title)}</span><small>${esc(s.price||"")} · ${dateText(s.at)}</small></li>`).join("")}</ul>`:""}
+  ${unlogged?`<p class="led-note">${unlogged} ${unlogged===1?"خاتم مؤشر":"خواتم مؤشرة"} مبيوع بدون تسجيل بيع، وما داخلة بهذي الأرقام.</p>`:""}
+  <button type="button" class="adm-btn" id="statsList">كل المبيعات والحجوزات</button></div>`;
+  $("statsList").onclick=()=>{$("salesPanel").close();$("ledger").showModal();renderLedger()}}
+function syncSales(){$("admLedger").textContent="المبيعات ("+Admin.sales.length+")";renderLedger();renderStats()}
 document.addEventListener("click",async e=>{
   const sa=e.target.closest("[data-sale]");if(sa){e.stopPropagation();openSale(byId(+sa.dataset.sale),sa.dataset.kind,sa.dataset.doc);return}
   const ed=e.target.closest("[data-edit]"),so=e.target.closest("[data-sold]");if(!ed&&!so)return;e.stopPropagation();
@@ -426,7 +454,10 @@ async function enterAdmin(){
     const b=e.target.closest("[data-del]");if(!b)return;
     if(!b.dataset.sure){b.dataset.sure="1";b.textContent="متأكد؟ اضغط مرة ثانية";return}
     b.disabled=true;try{await writeSales(list=>list.filter(s=>s.id!==b.dataset.del),"حذف سطر")}catch(x){b.disabled=false;toast(adminErr(x))}});
-  try{await loadSales();Admin.ledger=true;$("admLedger").hidden=false;$("admLedger").onclick=()=>{$("ledger").showModal();renderLedger()}}
+  try{await loadSales();Admin.ledger=true;$("admLedger").hidden=false;$("admLedger").onclick=()=>{$("ledger").showModal();renderLedger()};
+    $("admMenu").hidden=false;$("statsX").onclick=()=>$("salesPanel").close();
+    $("salesPanel").addEventListener("click",e=>{if(e.target===$("salesPanel"))$("salesPanel").close()});
+    $("admMenu").onclick=()=>{$("salesPanel").showModal();renderStats();loadSales().catch(()=>{})}}
   catch(e){toast("ما كدرت أقرا قائمة المبيعات: "+adminErr(e))}
   refreshAdmin();
   // A ring opened from a link before admin mode was known gets its sale buttons now.
