@@ -247,9 +247,12 @@ addEventListener("hashchange",openFromLink);
 let qrLib;
 const loadQr=()=>qrLib||(qrLib=new Promise((ok,no)=>{const s=document.createElement("script");s.src="qrcode.js";s.onload=()=>ok(window.qrcode);s.onerror=no;document.head.append(s)}));
 // With lines given, the picture becomes the guarantee card the customer keeps: a heading above the barcode and the details below it.
-function qrCanvas(r,lines){const q=window.qrcode(0,"M");q.addData(ringLink(r));q.make();
-  const n=q.getModuleCount(),cell=lines?10:8,quiet=lines?3:2,size=(n+quiet*2)*cell,top=lines?58:0,c=document.createElement("canvas"),g=c.getContext("2d");
-  c.width=size;c.height=top+size+(lines?lines.length*36+12:0);g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.fillStyle="#000";
+function qrCanvas(r,lines,pic){const q=window.qrcode(0,"M");q.addData(ringLink(r));q.make();
+  const n=q.getModuleCount(),cell=lines?10:8,quiet=lines?3:2,size=(n+quiet*2)*cell,picH=lines&&pic?Math.round(size*.72):0,top=lines?58+picH:0,c=document.createElement("canvas"),g=c.getContext("2d");
+  c.width=size;c.height=top+size+(lines?lines.length*36+12:0);g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);
+  // The ring's photo sits above the barcode, cropped to fill the width.
+  if(picH){const s=Math.max(size/pic.naturalWidth,picH/pic.naturalHeight),w=size/s,h=picH/s;g.drawImage(pic,(pic.naturalWidth-w)/2,(pic.naturalHeight-h)/2,w,h,0,58,size,picH)}
+  g.fillStyle="#000";
   for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(q.isDark(y,x))g.fillRect((x+quiet)*cell,top+(y+quiet)*cell,cell,cell);
   if(lines){g.direction="rtl";g.textAlign="center";
     const line=(text,px,y,weight)=>{let s=px;do{g.font=`${weight} ${s}px "IBM Plex Sans Arabic",Tahoma,sans-serif`;s-=2}while(g.measureText(text).width>size-24&&s>12);g.fillText(text,size/2,y)};
@@ -375,9 +378,12 @@ const waNumber=p=>{let d=latinDigits(String(p||"")).replace(/\D/g,"").replace(/^
 const dateText=at=>new Date(at).toLocaleDateString("en-GB");
 const guarLines=s=>["خاتم رقم "+s.no+" · "+s.title,s.name&&"الزبون: "+s.name,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"خواتم العقيق"].filter(Boolean);
 const guarText=s=>[`السلام عليكم${s.name?" "+s.name:""}،`,"هذا باركود الضمان لخاتمك من خواتم العقيق:","رقم الخاتم: "+s.no,"الاسم: "+s.title,s.price&&"السعر: "+s.price,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"رابط الضمان: "+BASE+"r/"+s.no,"احتفظ بهذي الرسالة."].filter(Boolean).join("\n");
+// The guarantee keeps the ring's photo only, never its video. The photo path is saved with the sale, so it survives the ring being edited or removed.
+const salePhoto=s=>{const r=byId(s.ringId);return s.photo||(r?photoUrl(r):"")};
+const loadImg=u=>new Promise(ok=>{if(!u)return ok(null);const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=u});
 // A free WhatsApp link fills in the text and the owner presses send. The picture goes through the phone's share list, once the customer's chat is open.
 async function openGuar(s){const box=$("guarBox"),r=byId(s.ringId)||{id:s.no-1,title:s.title};Admin.guar=null;
-  try{await loadQr();const c=qrCanvas(r,guarLines(s));Admin.guar={s,canvas:c};
+  try{await loadQr();const c=qrCanvas(r,guarLines(s),await loadImg(salePhoto(s)));Admin.guar={s,canvas:c};
     const num=waNumber(s.phone);
     box.innerHTML=`<h3>باركود الضمان</h3><img class="guar-card" src="${c.toDataURL("image/png")}" alt="باركود الضمان للخاتم رقم ${esc(s.no)}">
     ${num?`<a class="pill-wa" href="https://wa.me/${num}?text=${encodeURIComponent(guarText(s))}" target="_blank" rel="noopener">1. افتح محادثة الزبون وأرسل الرسالة</a>`:`<p style="margin:0;color:var(--carnelian)">رقم الزبون ما مكتوب صح. عدّله من قائمة المبيعات.</p>`}
@@ -395,7 +401,7 @@ async function submitSale(e){e.preventDefault();const S=Admin.sale,el=$("saleF")
   const name=el.name.value.trim(),phone=el.phone.value.trim();if(!waNumber(phone)){say("اكتب رقم واتساب الزبون كامل.");return}
   btn.disabled=true;say("دا أحفظ…");
   const old=S.doc&&Admin.sales.find(s=>s.id===S.doc),id=S.doc||"s"+Date.now();
-  const body={id,ringId:S.r.id,no:ringNo(S.r),title:S.r.title,kind:S.kind,name,phone,price:el.price.value.trim(),at:old&&old.kind===S.kind?old.at:Date.now()};
+  const body={id,ringId:S.r.id,no:ringNo(S.r),title:S.r.title,photo:photoUrl(S.r),kind:S.kind,name,phone,price:el.price.value.trim(),at:old&&old.kind===S.kind?old.at:Date.now()};
   try{await writeSales(list=>[...list.filter(s=>s.id!==id),body],(S.kind==="sold"?"بيع":"حجز")+" خاتم "+body.no);S.doc=id}
   catch(x){say(adminErr(x));btn.disabled=false;return}
   if(S.kind==="sold"&&!S.r.sold){const snapshot=JSON.stringify(catalogRows());S.r.sold=true;S.r.soldAt=Date.now();say("انحفظ البيع، دا أعلّم الخاتم «تم البيع»…");
@@ -404,7 +410,7 @@ async function submitSale(e){e.preventDefault();const S=Admin.sale,el=$("saleF")
 const kindName=k=>k==="sold"?"تم البيع":"حجز";
 function renderLedger(){if(!$("ledger").open)return;const it=[...Admin.sales].sort((a,b)=>b.at-a.at);
   $("ledgerBox").innerHTML=`<h3>المبيعات والحجوزات (${it.length})</h3><p class="led-note">هذي القائمة تشوفها إنت بس.</p>`+(it.length?it.map(s=>{const r=byId(s.ringId),can=s.kind!=="sold"&&r&&!r.sold;
-    return `<div class="led"><div class="led-top"><b>رقم ${esc(s.no)} · ${esc(s.title)}</b><span class="led-kind" data-k="${s.kind==="sold"?"sold":"res"}">${kindName(s.kind)}</span></div>
+    return `<div class="led">${salePhoto(s)?`<img class="led-photo" src="${esc(salePhoto(s))}" alt="${esc(s.title)}" loading="lazy">`:""}<div class="led-top"><b>رقم ${esc(s.no)} · ${esc(s.title)}</b><span class="led-kind" data-k="${s.kind==="sold"?"sold":"res"}">${kindName(s.kind)}</span></div>
     <dl><dt>الزبون</dt><dd>${esc(s.name||"غير مكتوب")}</dd><dt>الرقم</dt><dd dir="ltr" style="text-align:right">${esc(s.phone||"غير مكتوب")}</dd><dt>السعر</dt><dd>${esc(s.price||"غير مكتوب")}</dd><dt>التاريخ</dt><dd dir="ltr" style="text-align:right">${new Date(s.at).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"})}</dd></dl>
     <div class="adm-row"><button type="button" class="adm-btn main" data-guar="${esc(s.id)}">أرسل الضمان</button>${can?`<button type="button" class="adm-btn" data-sale="${s.ringId}" data-kind="sold" data-doc="${esc(s.id)}">تم الشراء</button>`:""}${r?`<button type="button" class="adm-btn" data-sale="${s.ringId}" data-kind="${esc(s.kind)}" data-doc="${esc(s.id)}">تعديل</button>`:""}<button type="button" class="adm-btn danger" data-del="${esc(s.id)}">حذف</button></div></div>`}).join(""):`<p style="margin:0;color:var(--dim)">بعد ما مسجل بيع أو حجز.</p>`)+`<button type="button" class="adm-btn" id="admOut">خروج من الآدمن بهذا الموبايل</button>`;
   $("admOut").onclick=()=>{store.del(KEY_TOKEN);store.del(KEY_OWNER);location.href=location.pathname}}
