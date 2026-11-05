@@ -113,7 +113,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .card .ph img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s ease}
 .card:hover .ph img{transform:scale(1.06)}
 .card .ph::after{content:"";position:absolute;inset:auto 0 0;height:45%;background:linear-gradient(transparent,color-mix(in srgb,var(--case) 96%,transparent))}
-.card .badge{position:absolute;top:12px;inset-inline-start:12px;z-index:2;font:700 12px var(--kufi);letter-spacing:.06em;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--vault) 70%,transparent);border:1px solid var(--metal);color:var(--metal);backdrop-filter:blur(6px)}
+.card .badges{position:absolute;top:12px;inset-inline-start:12px;z-index:2;display:flex;flex-wrap:wrap;gap:5px}
+.card .badge.size{border-color:var(--ink);color:var(--ink)}
+.sheet-badges{display:flex;flex-wrap:wrap;gap:6px}
+.sheet-badges span{padding:4px 10px;border:1px solid var(--ink);border-radius:999px;color:var(--ink);font:700 12px var(--kufi)}
+.card .badge{font:700 12px var(--kufi);letter-spacing:.06em;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--vault) 70%,transparent);border:1px solid var(--metal);color:var(--metal);backdrop-filter:blur(6px)}
 .card .in{padding:2px 18px 18px;margin-top:-46px;position:relative;z-index:2;display:flex;flex-direction:column;gap:6px;flex:1}
 .card h4{font-family:var(--body);font-weight:600;font-size:19px;line-height:1.4;margin:0;text-wrap:balance}
 .card .by{color:var(--dim);font-size:13px;margin:0}
@@ -238,7 +242,8 @@ body.is-admin{padding-bottom:76px}
   .price{font-size:19px}
   .ask{font-size:13px}
   .add{width:100%;min-height:36px}
-  .card .badge{top:8px;inset-inline-start:8px;font-size:10.5px;padding:3px 7px}
+  .card .badges{top:8px;inset-inline-start:8px;gap:4px}
+  .card .badge{font-size:10.5px;padding:3px 7px}
   .card .play{bottom:28px;inset-inline-end:8px;padding:3px 7px;font-size:10px}
   .sold-rib{padding:6px 8px;font-size:14px}
   .adm-row{flex-wrap:wrap;gap:6px}

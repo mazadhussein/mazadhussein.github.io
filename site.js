@@ -66,7 +66,7 @@ const MARKUP=String.raw`<header class="top"><div class="g">
   <div class="two"><label>القياس<input name="size" type="number" inputmode="decimal" step="0.5" min="1"></label><label>السعر بالألف<input name="price" type="number" inputmode="numeric" min="0"></label></div>
   <label>أو السعر بالدولار<input name="usd" type="number" inputmode="numeric" min="0"></label>
   <div class="two"><label>الحجم<select name="grade"><option value="">بعد ما محدد</option><option value="nawa">نواعم</option><option value="wasat">وسط</option><option value="khashin">خشن</option></select></label><label>سوبر VIP<select name="sup"><option value="">لا، حسب السعر</option><option value="1">إي، سوبر VIP</option></select></label></div>
-  <p class="hint">فئة السعر تنحسب وحدها: 300 ألف وفوق VIP، والأقل وسط. إذا السعر فارغ يطلع «السعر عند الطلب».</p>
+  <p class="hint">300 ألف وفوق تطلع عليه علامة VIP وحدها. إذا السعر فارغ يطلع «السعر عند الطلب».</p>
   <label>صورة الخاتم<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
   <label>فيديو الخاتم، MP4 وأقل من 20 ميغا<input name="video" type="file" accept="video/mp4,video/webm"></label>
   <p class="cur" id="admCur"></p>
@@ -97,11 +97,14 @@ document.getElementById("app").innerHTML=MARKUP;
 const TIERS=[
   {id:"super",name:"سوبر VIP",big:"سوبر",note:"قطع مختارة",metal:"var(--silver)"},
   {id:"vip",name:"VIP",big:"VIP",note:"من 300 ألف وفوق",metal:"var(--gold)"},
-  {id:"wasat",name:"وسط",big:"وسط",note:"أقل من 300 ألف",metal:"var(--carnelian)"}
+  {id:"wasat",name:"الخواتم",big:"الخواتم",note:"أقل من 300 ألف",metal:"var(--carnelian)"}
 ];
 // The size list. Each ring gets its size from the admin form, not from its measured number.
-const GRADES=[{id:"nawa",name:"نواعم"},{id:"wasat",name:"وسط"},{id:"khashin",name:"خشن"}];
-const gradeName=r=>(GRADES.find(g=>g.id===r.grade)||{}).name;
+const GRADES=[{id:"nawa",name:"نواعم",one:"ناعم"},{id:"wasat",name:"وسط",one:"وسط"},{id:"khashin",name:"خشن",one:"خشن"}];
+const gradeName=r=>(GRADES.find(g=>g.id===r.grade)||{}).one;
+// Only VIP-level rings carry a price label. The word وسط now means size alone.
+const tierLabel=r=>r.t==="wasat"?"":T(r.t).name;
+const ringLabels=r=>[tierLabel(r),gradeName(r)].filter(Boolean);
 const ST={karazi:"radial-gradient(circle at 35% 30%,#e0604f,#6e130c 72%)",karaz:"radial-gradient(circle at 35% 30%,#c23a2c,#3d0603 75%)",
   aqiq:"radial-gradient(circle at 35% 30%,#e07a52,#7d2410 75%)",yellow:"radial-gradient(circle at 35% 30%,#fbe28a,#b98a12 75%)",
   dur:"radial-gradient(circle at 35% 30%,#fff,#bfc4c8 75%)"};
@@ -130,7 +133,7 @@ const ringLink=r=>BASE+"r/"+ringNo(r)+".html";
 const priceText=ringPriceText;
 function ringText(r,short){
   const rows=[["رقم الخاتم",ringNo(r)],["الاسم",r.title],["السعر",priceText(r)],["القياس",r.size]];
-  if(!short)rows.splice(2,0,["التفنيد",r.q],["النقش",r.nq],["الصياغة",r.sg],["الفئة",T(r.t).name],["الحجم",gradeName(r)]);
+  if(!short)rows.splice(2,0,["التفنيد",r.q],["النقش",r.nq],["الصياغة",r.sg],["الفئة",tierLabel(r)],["الحجم",gradeName(r)]);
   rows.push(["الصورة والفيديو والباركود",ringLink(r)]);
   return rows.filter(x=>x[1]).map(([k,v])=>k+": "+v).join("\n");
 }
@@ -163,19 +166,19 @@ $("marq").innerHTML=[...names,...names].map(n=>`<span>${n}</span>`).join("");
 
 // hero rotation through photographed rings
 const heroes=live().filter(r=>videoUrl(r)&&photoUrl(r));let hi=0;
-if(heroes[0]){$("heroImg").src=photoUrl(heroes[0]);$("heroName").textContent=heroes[0].title;$("heroTier").textContent=T(heroes[0].t).name}
+if(heroes[0]){$("heroImg").src=photoUrl(heroes[0]);$("heroName").textContent=heroes[0].title;$("heroTier").textContent=ringLabels(heroes[0]).join(" · ")}
 if(heroes.length&&!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(()=>{
   hi=(hi+1)%heroes.length;const r=heroes[hi],im=$("heroImg");
-  im.style.opacity=0;setTimeout(()=>{im.src=photoUrl(r);$("heroName").textContent=r.title;$("heroTier").textContent=T(r.t).name;im.style.opacity=1},500);
+  im.style.opacity=0;setTimeout(()=>{im.src=photoUrl(r);$("heroName").textContent=r.title;$("heroTier").textContent=ringLabels(r).join(" · ");im.style.opacity=1},500);
 },4500);
 
 // filters
 let tier="all",grade="all";try{tier=localStorage.getItem("mh-tier")||"all"}catch(e){}
-if(!T(tier))tier="all";
+if(!T(tier)||tier==="wasat")tier="all";
 function chips(){const row=(list,now,key)=>[{id:"all",name:"الكل"},...list].map(t=>`<button type="button" class="chip" data-${key}="${t.id}" aria-pressed="${t.id===now}">${t.name}</button>`).join("");
   $("grades").innerHTML=row(GRADES,grade,"g");
   // Cheapest first in the list, while the sections on the page start from the most expensive.
-  $("tiers").innerHTML=row([...TIERS].reverse(),tier,"t")}
+  $("tiers").innerHTML=row(TIERS.filter(t=>t.id!=="wasat").reverse(),tier,"t")}
 function nav(){$("nav").innerHTML=TIERS.filter(t=>live().some(r=>r.t===t.id)).map(t=>`<a href="#t-${t.id}">${t.name}</a>`).join("")+`<a href="#shop">قائمة الأسعار</a>`}
 $("tiers").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;tier=b.dataset.t;try{localStorage.setItem("mh-tier",tier)}catch(e){}chips();render()};
 $("grades").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;grade=b.dataset.g;chips();render()};
@@ -210,7 +213,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(
 
 const latinDigits=s=>s.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
 function card(r){const t=T(r.t);return `<article class="card${r.sold?" is-sold":""}" tabindex="0" data-id="${r.id}" style="--metal:${t.metal}">
-  <span class="badge">${t.name}</span><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
+  <div class="badges">${tierLabel(r)?`<span class="badge">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span class="badge size">${gradeName(r)}</span>`:""}</div><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
   <div class="in"><h4>${esc(r.title)}</h4><p class="by">${esc(["رقم "+ringNo(r),r.nq,r.sg].filter(Boolean).join(" · "))}</p>
   <div class="row">${priceHTML(r)}${r.sold?"":addBtn(r)}</div>${adminRow(r)}</div></article>`}
 
@@ -255,7 +258,7 @@ let openId=null;
 const saleBar=r=>Admin.ledger&&!r.sold?`<div class="adm-sale"><b>هل تم الشراء؟</b><button type="button" class="adm-btn main" data-sale="${r.id}" data-kind="sold">تم الشراء</button><button type="button" class="adm-btn" data-sale="${r.id}" data-kind="reserved">حجز</button></div>`:"";
 function openRing(r){const t=T(r.t);openId=r.id;
   $("sheet").innerHTML=`${saleBar(r)}<div class="sheet" style="--metal:${t.metal}">${gallery(r)}<div class="tx">
-   <span class="badge" style="position:static;align-self:flex-start;font:700 12px var(--kufi);padding:4px 10px;border-radius:999px;border:1px solid ${t.metal};color:${t.metal}">${t.name}</span>
+   ${ringLabels(r).length?`<div class="sheet-badges">${tierLabel(r)?`<span style="border-color:${t.metal};color:${t.metal}">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span>${gradeName(r)}</span>`:""}</div>`:""}
    <h3>${esc(r.title)}</h3><p class="q">${esc(r.q||"")}</p>
    <div class="specs"><dl>${[["رقم الخاتم",ringNo(r)],["النقش",r.nq],["الصياغة",r.sg],["الحجم",gradeName(r)],["القياس",r.size],["الحجر","عقيق يماني خام"]].filter(x=>x[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
    <figure class="qr" id="qrWrap"><img id="qrImg" data-ring="${ringNo(r)}" alt="باركود الخاتم رقم ${ringNo(r)}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="><figcaption>باركود الخاتم</figcaption></figure></div>
