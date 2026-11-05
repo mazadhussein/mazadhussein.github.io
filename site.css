@@ -1,4 +1,7 @@
 [hidden]{display:none!important}
+body.sold-only .hero,body.sold-only .marq,body.sold-only .filters{display:none}
+.sold-rib{position:absolute;top:50%;inset-inline:0;z-index:2;transform:translateY(-50%);padding:9px 12px;background:var(--carnelian);color:#fff;font:700 18px var(--body);text-align:center}
+.card.is-sold .ph img{filter:grayscale(.45) brightness(.8)}
 img{max-width:100%}
 body{margin:0}
 /* Layout: a jeweller's vault after dark. Full-bleed oxblood hero with one ring held to the light,

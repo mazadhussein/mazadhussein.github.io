@@ -111,6 +111,9 @@ const tierOf=r=>r.super?"super":r.label||r.price>=300?"vip":"wasat";
 R.forEach(r=>{r.t=tierOf(r)});
 const byId=id=>R.find(r=>r.id===id);
 const live=()=>R.filter(r=>!r.sold);
+// A sold ring stays on show for 24 hours, marked sold, then leaves the customers' list. Its link and barcode keep working.
+const SOLD_SHOW_MS=24*60*60*1000;
+const onShow=r=>!r.sold||(r.soldAt&&Date.now()-r.soldAt<SOLD_SHOW_MS);
 const photoUrl=r=>r.photo||(r.img?`photo/${r.img}.jpg`:"");
 const videoUrl=r=>r.video||(r.img&&!r.photoOnly?`video/${r.img}.mp4`:"");
 const rank=r=>r.label?9999:(r.price||0);
@@ -204,20 +207,21 @@ $("cartBox").addEventListener("click",e=>{const b=e.target.closest("[data-rm]");
 document.addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(b){e.stopPropagation();toggle(+b.dataset.add)}},true);
 
 const latinDigits=s=>s.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
-function card(r){const t=T(r.t);return `<article class="card" tabindex="0" data-id="${r.id}" style="--metal:${t.metal}">
-  <span class="badge">${t.name}</span><div class="ph">${photo(r)}${videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
+function card(r){const t=T(r.t);return `<article class="card${r.sold?" is-sold":""}" tabindex="0" data-id="${r.id}" style="--metal:${t.metal}">
+  <span class="badge">${t.name}</span><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
   <div class="in"><h4>${esc(r.title)}</h4><p class="by">${esc(["رقم "+ringNo(r),r.nq,r.sg].filter(Boolean).join(" · "))}</p>
-  <div class="row">${priceHTML(r)}${addBtn(r)}</div>${adminRow(r)}</div></article>`}
+  <div class="row">${priceHTML(r)}${r.sold?"":addBtn(r)}</div>${adminRow(r)}</div></article>`}
 
 function render(){
   const [lo,hi]=slider(),q=$("q").value.trim(),full=lo===100&&hi===650;
   const ok=r=>(tier==="all"||r.t===tier)&&(full||(r.price!=null&&r.price>=lo&&r.price<=hi))&&(grade==="all"||r.grade===grade)&&(!q||String(ringNo(r))===latinDigits(q)||(r.title+(r.q||"")+(r.nq||"")+(r.sg||"")).includes(q));
   let n=0;
-  const html=TIERS.map(t=>{const it=live().filter(r=>r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a));n+=it.length;if(!it.length)return"";
+  const html=TIERS.map(t=>{const it=R.filter(r=>onShow(r)&&r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a));n+=it.length;if(!it.length)return"";
     return `<section class="tier" id="t-${t.id}" style="--metal:${t.metal}"><div class="g">
       <div class="thead"><span class="big">${t.big}</span><h3>${t.name}</h3><p>${t.note} · ${it.length} قطعة</p></div>
       <div class="rail-x">${it.map(card).join("")}</div></div></section>`}).join("");
-  $("list").innerHTML=soldSection()+html||`<div class="g"><div class="empty">ماكو خاتم بهذي المواصفات. وسّع مدى السعر، أو راسلنا على الواتساب ونلكالك اللي تريده.</div></div>`;
+  const soldOnly=Admin.on&&Admin.showSold;document.body.classList.toggle("sold-only",soldOnly);
+  $("list").innerHTML=soldOnly?soldSection():html||`<div class="g"><div class="empty">ماكو خاتم بهذي المواصفات. وسّع مدى السعر، أو راسلنا على الواتساب ونلكالك اللي تريده.</div></div>`;
   $("count").textContent=n+" قطعة مطابقة";
 }
 ["lo","hi","q"].forEach(id=>$(id).addEventListener("input",render));
@@ -253,7 +257,7 @@ function openRing(r){const t=T(r.t);openId=r.id;
    <h3>${esc(r.title)}</h3><p class="q">${esc(r.q||"")}</p>
    <div class="specs"><dl>${[["رقم الخاتم",ringNo(r)],["النقش",r.nq],["الصياغة",r.sg],["الحجم",gradeName(r)],["القياس",r.size],["الحجر","عقيق يماني خام"]].filter(x=>x[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
    <figure class="qr" id="qrWrap"><img id="qrImg" data-ring="${ringNo(r)}" alt="باركود الخاتم رقم ${ringNo(r)}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="><figcaption>باركود الخاتم</figcaption></figure></div>
-   ${r.sold?`<p class="sold-tag">هذا الخاتم مبيوع</p>`:`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">${priceHTML(r)}
+   ${r.sold?`<p class="sold-tag">تم البيع</p>`:`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">${priceHTML(r)}
    <span style="display:flex;gap:8px;flex-wrap:wrap">${addBtn(r)}<a class="pill-wa" href="${wa(r)}" target="_blank" rel="noopener">احجز هذا الخاتم</a></span></div>`}
    <p style="margin:0;color:var(--dim);font-size:13px">أو راسلنا على <span class="num" style="font-size:15px">0775 768 5741</span></p></div></div>`;
   if(!$("dlg").open)$("dlg").showModal();wireGallery();drawQr(r)}
@@ -264,7 +268,7 @@ $("dlg").addEventListener("click",e=>{if(e.target===$("dlg"))$("dlg").close()});
 // admin mode. Only someone holding a GitHub key for this site's repositories can save; everyone else never sees these controls.
 function adminRow(r){if(!Admin.on)return"";const second=!r.sold&&Admin.ledger?`<button type="button" class="adm-btn" data-sale="${r.id}" data-kind="sold">تم الشراء</button>`:`<button type="button" class="adm-btn" data-sold="${r.id}">${r.sold?"رجّعه للموقع":"مبيوع"}</button>`;return `<div class="adm-row"><button type="button" class="adm-btn" data-edit="${r.id}">تعديل</button>${second}</div>`}
 function soldSection(){if(!Admin.on||!Admin.showSold)return"";const it=R.filter(r=>r.sold);
-  return `<section class="tier" id="t-sold" style="--metal:var(--dim)"><div class="g"><div class="thead"><span class="big">مبيع</span><h3>المبيوع</h3><p>مخفي عن الزبائن · ${it.length} قطعة</p></div><div class="rail-x">${it.map(card).join("")||"<p>ماكو خواتم مبيوعة.</p>"}</div></div></section>`}
+  return `<section class="tier" id="t-sold" style="--metal:var(--dim)"><div class="g"><div class="thead"><span class="big">مبيع</span><h3>المبيوع</h3><p>يبين للزبون 24 ساعة بعد البيع وبعدها يختفي · ${it.length} قطعة</p></div><div class="rail-x">${it.map(card).join("")||"<p>ماكو خواتم مبيوعة.</p>"}</div></div></section>`}
 
 // GitHub access. The key stays on this device only and is sent only to GitHub.
 const KEY_TOKEN="mh-gh-token",KEY_OWNER="mh-gh-owner";
@@ -293,7 +297,7 @@ const catalogRows=()=>R.map(({t,...r})=>r);
 function siteEntries(){const base=`https://${GH.owner}.github.io/`;
   return [{path:"index.html",content:pageHtml(catalogRows())},...R.map(r=>({path:"r/"+ringNo(r)+".html",content:ringPage(r,base)}))]}
 const restore=snapshot=>{const now=JSON.parse(snapshot);R.length=0;now.forEach(r=>{r.t=tierOf(r);R.push(r)})};
-function refreshAdmin(){$("admSold").textContent="المبيوع ("+R.filter(r=>r.sold).length+")";nav();render()}
+function refreshAdmin(){$("admSold").textContent=Admin.showSold?"كل الخواتم":"المبيوع ("+R.filter(r=>r.sold).length+")";nav();render()}
 async function saveCatalog(snapshot,say,extra=[]){
   try{await commit("تحديث الخواتم",[...siteEntries(),...extra]);refreshAdmin();return true}
   catch(e){restore(snapshot);refreshAdmin();say(adminErr(e));return false}
@@ -382,7 +386,7 @@ async function submitSale(e){e.preventDefault();const S=Admin.sale,el=$("saleF")
   const body={id,ringId:S.r.id,no:ringNo(S.r),title:S.r.title,kind:S.kind,name,phone,price:el.price.value.trim(),at:old&&old.kind===S.kind?old.at:Date.now()};
   try{await writeSales(list=>[...list.filter(s=>s.id!==id),body],(S.kind==="sold"?"بيع":"حجز")+" خاتم "+body.no);S.doc=id}
   catch(x){say(adminErr(x));btn.disabled=false;return}
-  if(S.kind==="sold"&&!S.r.sold){const snapshot=JSON.stringify(catalogRows());S.r.sold=true;say("انحفظ البيع، دا أشيل الخاتم من المعروض…");
+  if(S.kind==="sold"&&!S.r.sold){const snapshot=JSON.stringify(catalogRows());S.r.sold=true;S.r.soldAt=Date.now();say("انحفظ البيع، دا أعلّم الخاتم «تم البيع»…");
     if(!await saveCatalog(snapshot,say)){btn.disabled=false;return}}
   $("sale").close();if($("dlg").open)openRing(S.r);openGuar(body)}
 const kindName=k=>k==="sold"?"تم البيع":"حجز";
@@ -398,7 +402,7 @@ document.addEventListener("click",async e=>{
   const ed=e.target.closest("[data-edit]"),so=e.target.closest("[data-sold]");if(!ed&&!so)return;e.stopPropagation();
   if(ed){openForm(byId(+ed.dataset.edit));return}
   const r=byId(+so.dataset.sold),snapshot=JSON.stringify(catalogRows());
-  so.disabled=true;if(r.sold)delete r.sold;else r.sold=true;toast("دا أحفظ…",true);
+  so.disabled=true;if(r.sold){delete r.sold;delete r.soldAt}else{r.sold=true;r.soldAt=Date.now()}toast("دا أحفظ…",true);
   if(await saveCatalog(snapshot,t=>toast(t,true)))toast(SAVED);else so.disabled=false;
 },true);
 
@@ -410,7 +414,7 @@ async function enterAdmin(){
   await loadLive();
   Admin.on=true;document.body.classList.add("is-admin");$("admBar").hidden=false;
   $("admNew").onclick=()=>openForm(null);
-  $("admSold").onclick=()=>{Admin.showSold=!Admin.showSold;render();if(Admin.showSold)$("t-sold").scrollIntoView()};
+  $("admSold").onclick=()=>{Admin.showSold=!Admin.showSold;refreshAdmin();scrollTo(0,0)};
   $("admX").onclick=()=>$("adm").close();
   $("admF").addEventListener("submit",submitForm);
   $("admDel").onclick=async()=>{const b=$("admDel");if(!b.dataset.sure){b.dataset.sure="1";b.textContent="متأكد؟ اضغط مرة ثانية";return}
