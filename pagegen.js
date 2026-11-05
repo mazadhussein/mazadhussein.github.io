@@ -2,18 +2,29 @@
 // WhatsApp reads a ring page's preview tags, and a visitor is sent straight on to that ring on the main site.
 const htmlEsc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const ringPriceText=r=>r.price!=null?r.price+" ألف":r.label||"السعر عند الطلب";
+const SITE_ROOT="https://khawatim-alaqeeq.pages.dev/";
+const SITE_TITLE="خواتم العقيق | خواتم عقيق يماني بنقش يدوي";
+const SITE_DESC="خواتم العقيق: خواتم عقيق يماني خام بنقش يدوي وصياغة فضة بحرينية. صور وفيديو لكل خاتم، والحجز بالواتساب، والتوصيل لكل محافظات العراق.";
+// The code Google Search Console gives to prove the site is ours. Empty until the owner connects it.
+const GOOGLE_VERIFY="";
 function pageHtml(rows,settings){
   const data=rows.map(r=>JSON.stringify(r).replace(/</g,"\\u003c")).join(",\n");
+  const store={"@context":"https://schema.org","@type":"JewelryStore",name:"خواتم العقيق",url:SITE_ROOT,image:SITE_ROOT+"img/logo.jpg",description:SITE_DESC,telephone:"+9647757685741",areaServed:"IQ"};
+  // Readers and search engines get the rings as plain text straight away. The full site replaces this once it loads.
+  const list=rows.filter(r=>!r.sold).map(r=>`<li><a href="r/${r.id+1}">${htmlEsc(r.title)}</a></li>`).join("");
   return `<!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>خواتم العقيق</title>
-<meta name="description" content="عقيق يماني خام، نقش يدوي، وصياغة فضة بحرينية. نرسل لكل محافظات العراق.">
-<meta property="og:title" content="خواتم العقيق"><meta property="og:description" content="عقيق يماني خام، نقش يدوي، وصياغة فضة بحرينية."><meta property="og:image" content="https://khawatim-alaqeeq.pages.dev/img/logo.jpg"><meta property="og:type" content="website">
+<title>${SITE_TITLE}</title>
+<meta name="description" content="${SITE_DESC}">
+<link rel="canonical" href="${SITE_ROOT}">${GOOGLE_VERIFY?`
+<meta name="google-site-verification" content="${htmlEsc(GOOGLE_VERIFY)}">`:""}
+<meta property="og:title" content="${SITE_TITLE}"><meta property="og:description" content="${SITE_DESC}"><meta property="og:image" content="${SITE_ROOT}img/logo.jpg"><meta property="og:url" content="${SITE_ROOT}"><meta property="og:type" content="website"><meta property="og:site_name" content="خواتم العقيق">
+<script type="application/ld+json">${JSON.stringify(store).replace(/</g,"\\u003c")}</`+`script>
 <link rel="icon" href="img/emblem.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="site.css"></head><body>
-<div id="app"></div>
+<div id="app"><main style="padding:24px 16px"><h1>خواتم العقيق</h1><p>${SITE_DESC}</p><ul>${list}</ul></main></div>
 <script type="application/json" id="settings">${JSON.stringify(settings||{rate:152})}</`+`script>
 <script type="application/json" id="catalog">[
 ${data}
@@ -29,6 +40,7 @@ function ringPage(r,base){
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${htmlEsc(title)}</title>
 <meta name="description" content="${htmlEsc(desc)}">
+<link rel="canonical" href="${htmlEsc(base)}">
 <meta property="og:title" content="${htmlEsc(title)}"><meta property="og:description" content="${htmlEsc(desc)}">
 <meta property="og:image" content="${htmlEsc(base+pic)}"><meta property="og:url" content="${htmlEsc(base+"r/"+no)}"><meta property="og:type" content="website"><meta property="og:site_name" content="خواتم العقيق">
 <meta name="twitter:card" content="summary_large_image">
