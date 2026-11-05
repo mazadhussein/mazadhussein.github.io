@@ -29,7 +29,7 @@ function ringPage(r,base){
 <title>${htmlEsc(title)}</title>
 <meta name="description" content="${htmlEsc(desc)}">
 <meta property="og:title" content="${htmlEsc(title)}"><meta property="og:description" content="${htmlEsc(desc)}">
-<meta property="og:image" content="${htmlEsc(base+pic)}"><meta property="og:url" content="${htmlEsc(base+"r/"+no+".html")}"><meta property="og:type" content="website"><meta property="og:site_name" content="خواتم العقيق">
+<meta property="og:image" content="${htmlEsc(base+pic)}"><meta property="og:url" content="${htmlEsc(base+"r/"+no)}"><meta property="og:type" content="website"><meta property="og:site_name" content="خواتم العقيق">
 <meta name="twitter:card" content="summary_large_image">
 <script>location.replace(${JSON.stringify(to)})</`+`script>
 </head><body style="background:#140908;color:#f4e9e1;font-family:Tahoma,sans-serif;text-align:center;padding:40px 16px">

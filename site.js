@@ -126,10 +126,13 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const T=id=>TIERS.find(t=>t.id===id);
 // WhatsApp links can only carry text, so the message holds the ring's full details, its number and a link that opens its photo and video.
-const IS_PAGES=location.hostname.endsWith(".github.io");
-const BASE=IS_PAGES?location.origin+"/":new URL(".",location.href).href;
+const SITE_HOST="khawatim-alaqeeq.pages.dev",SITE_OWNER="mazadhussein";
+// Links and barcodes sent out before the move still arrive at the same ring.
+if(location.hostname.endsWith(".github.io"))location.replace("https://"+SITE_HOST+location.pathname+location.search+location.hash);
+const IS_PAGES=location.hostname.endsWith(".pages.dev");
+const BASE=IS_PAGES?"https://"+SITE_HOST+"/":new URL(".",location.href).href;
 const ringNo=r=>r.id+1;
-const ringLink=r=>BASE+"r/"+ringNo(r)+".html";
+const ringLink=r=>BASE+"r/"+ringNo(r);
 const priceText=ringPriceText;
 function ringText(r,short){
   const rows=[["رقم الخاتم",ringNo(r)],["الاسم",r.title],["السعر",priceText(r)],["القياس",r.size]];
@@ -278,7 +281,7 @@ function soldSection(){if(!Admin.on||!Admin.showSold)return"";const it=R.filter(
 // GitHub access. The key stays on this device only and is sent only to GitHub.
 const KEY_TOKEN="mh-gh-token",KEY_OWNER="mh-gh-owner";
 const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
-const GH={owner:IS_PAGES?location.hostname.split(".")[0]:"",token:""};
+const GH={owner:IS_PAGES?SITE_OWNER:"",token:""};
 const pubRepo=()=>GH.owner+"/"+GH.owner+".github.io";
 const privRepo=()=>GH.owner+"/mazad-private";
 async function api(path,opts={}){
@@ -299,7 +302,7 @@ async function commit(message,entries){try{await commitOnce(message,entries)}cat
 const blobB64=b=>new Promise((ok,no)=>{const f=new FileReader();f.onload=()=>ok(String(f.result).split(",")[1]);f.onerror=no;f.readAsDataURL(b)});
 async function uploadFile(blob,path){const r=await api(`/repos/${pubRepo()}/git/blobs`,{method:"POST",body:JSON.stringify({content:await blobB64(blob),encoding:"base64"})});return {path,sha:r.sha}}
 const catalogRows=()=>R.map(({t,...r})=>r);
-function siteEntries(){const base=`https://${GH.owner}.github.io/`;
+function siteEntries(){const base=`https://${SITE_HOST}/`;
   return [{path:"index.html",content:pageHtml(catalogRows())},...R.map(r=>({path:"r/"+ringNo(r)+".html",content:ringPage(r,base)}))]}
 const restore=snapshot=>{const now=JSON.parse(snapshot);R.length=0;now.forEach(r=>{r.t=tierOf(r);R.push(r)})};
 function refreshAdmin(){$("admSold").textContent=Admin.showSold?"كل الخواتم":"المبيوع ("+R.filter(r=>r.sold).length+")";nav();render()}
@@ -367,7 +370,7 @@ function openSale(r,kind,doc){if(!r)return;const el=$("saleF").elements,old=doc&
 const waNumber=p=>{let d=latinDigits(String(p||"")).replace(/\D/g,"").replace(/^00/,"");if(d.startsWith("0"))d="964"+d.slice(1);return d.length>=10?d:""};
 const dateText=at=>new Date(at).toLocaleDateString("en-GB");
 const guarLines=s=>["خاتم رقم "+s.no+" · "+s.title,s.name&&"الزبون: "+s.name,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"خواتم العقيق"].filter(Boolean);
-const guarText=s=>[`السلام عليكم${s.name?" "+s.name:""}،`,"هذا باركود الضمان لخاتمك من خواتم العقيق:","رقم الخاتم: "+s.no,"الاسم: "+s.title,s.price&&"السعر: "+s.price,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"رابط الضمان: "+BASE+"r/"+s.no+".html","احتفظ بهذي الرسالة."].filter(Boolean).join("\n");
+const guarText=s=>[`السلام عليكم${s.name?" "+s.name:""}،`,"هذا باركود الضمان لخاتمك من خواتم العقيق:","رقم الخاتم: "+s.no,"الاسم: "+s.title,s.price&&"السعر: "+s.price,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"رابط الضمان: "+BASE+"r/"+s.no,"احتفظ بهذي الرسالة."].filter(Boolean).join("\n");
 // A free WhatsApp link fills in the text and the owner presses send. The picture goes through the phone's share list, once the customer's chat is open.
 async function openGuar(s){const box=$("guarBox"),r=byId(s.ringId)||{id:s.no-1,title:s.title};Admin.guar=null;
   try{await loadQr();const c=qrCanvas(r,guarLines(s));Admin.guar={s,canvas:c};
