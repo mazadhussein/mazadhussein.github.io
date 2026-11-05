@@ -183,8 +183,10 @@ function chips(){const row=(list,now,key)=>[{id:"all",name:"الكل"},...list].
   // Cheapest first in the list, while the sections on the page start from the most expensive.
   $("tiers").innerHTML=row(TIERS.filter(t=>t.id!=="wasat").reverse(),tier,"t")}
 function nav(){$("nav").innerHTML=TIERS.filter(t=>live().some(r=>r.t===t.id)).map(t=>`<a href="#t-${t.id}">${t.name}</a>`).join("")+`<a href="#shop">قائمة الأسعار</a>`}
-$("tiers").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;tier=b.dataset.t;try{localStorage.setItem("mh-tier",tier)}catch(e){}chips();render()};
-$("grades").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;grade=b.dataset.g;chips();render()};
+// Long lists open in steps, so a phone never draws hundreds of rings at once.
+const PAGE_STEP=24;let more={};
+$("tiers").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;tier=b.dataset.t;more={};try{localStorage.setItem("mh-tier",tier)}catch(e){}chips();render()};
+$("grades").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;grade=b.dataset.g;more={};chips();render()};
 function slider(){let lo=+$("lo").value,hi=+$("hi").value;if(lo>hi){[lo,hi]=[hi,lo]}
   $("loV").textContent=lo;$("hiV").textContent=hi;const span=650-100;
   $("fill").style.right=((lo-100)/span*100)+"%";$("fill").style.left=(100-(hi-100)/span*100)+"%";return[lo,hi]}
@@ -227,16 +229,16 @@ function render(){
   const html=TIERS.map(t=>{const it=R.filter(r=>onShow(r)&&r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a));n+=it.length;if(!it.length)return"";
     return `<section class="tier" id="t-${t.id}" style="--metal:${t.metal}"><div class="g">
       <div class="thead"><span class="big">${t.big}</span><h3>${t.name}</h3><p>${t.note} · ${it.length} قطعة</p></div>
-      <div class="rail-x">${it.map(card).join("")}</div></div></section>`}).join("");
+      <div class="rail-x">${it.slice(0,more[t.id]||PAGE_STEP).map(card).join("")}</div>${it.length>(more[t.id]||PAGE_STEP)?`<button type="button" class="more-btn" data-more="${t.id}">عرض المزيد (باقي ${it.length-(more[t.id]||PAGE_STEP)})</button>`:""}</div></section>`}).join("");
   const soldOnly=Admin.on&&Admin.showSold;document.body.classList.toggle("sold-only",soldOnly);
   $("list").innerHTML=soldOnly?soldSection():html||`<div class="g"><div class="empty">ماكو خاتم بهذي المواصفات. وسّع مدى السعر، أو راسلنا على الواتساب ونلكالك اللي تريده.</div></div>`;
   $("count").textContent=n+" قطعة مطابقة";
 }
-["lo","hi","q"].forEach(id=>$(id).addEventListener("input",render));
+["lo","hi","q"].forEach(id=>$(id).addEventListener("input",()=>{more={};render()}));
 
 // detail sheet
 $("list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList.contains("card"))e.target.click()});
-$("list").addEventListener("click",e=>{const c=e.target.closest(".card");if(c)openRing(byId(+c.dataset.id))});
+$("list").addEventListener("click",e=>{const m=e.target.closest("[data-more]");if(m){const id=m.dataset.more;more[id]=(more[id]||PAGE_STEP)+PAGE_STEP;render();return}const c=e.target.closest(".card");if(c)openRing(byId(+c.dataset.id))});
 // A link or barcode ending in #ring=13 opens that ring directly. A sold ring still opens, marked sold, so its barcode keeps working as a guarantee.
 function openFromLink(){const m=location.hash.match(/ring=(\d+)/);if(!m||$("dlg").open)return;const r=byId(+m[1]-1);if(r)openRing(r)}
 addEventListener("hashchange",openFromLink);
@@ -302,12 +304,13 @@ async function commit(message,entries){try{await commitOnce(message,entries)}cat
 const blobB64=b=>new Promise((ok,no)=>{const f=new FileReader();f.onload=()=>ok(String(f.result).split(",")[1]);f.onerror=no;f.readAsDataURL(b)});
 async function uploadFile(blob,path){const r=await api(`/repos/${pubRepo()}/git/blobs`,{method:"POST",body:JSON.stringify({content:await blobB64(blob),encoding:"base64"})});return {path,sha:r.sha}}
 const catalogRows=()=>R.map(({t,...r})=>r);
-function siteEntries(){const base=`https://${SITE_HOST}/`;
-  return [{path:"index.html",content:pageHtml(catalogRows())},...R.map(r=>({path:"r/"+ringNo(r)+".html",content:ringPage(r,base)}))]}
+// A save writes the main page and the pages of the rings that changed, so it stays quick with hundreds of rings.
+function siteEntries(snapshot){const base=`https://${SITE_HOST}/`,rows=catalogRows(),before=new Map((snapshot?JSON.parse(snapshot):[]).map(r=>[r.id,JSON.stringify(r)]));
+  return [{path:"index.html",content:pageHtml(rows)},...rows.filter(r=>before.get(r.id)!==JSON.stringify(r)).map(r=>({path:"r/"+(r.id+1)+".html",content:ringPage(r,base)}))]}
 const restore=snapshot=>{const now=JSON.parse(snapshot);R.length=0;now.forEach(r=>{r.t=tierOf(r);R.push(r)})};
 function refreshAdmin(){$("admSold").textContent=Admin.showSold?"كل الخواتم":"المبيوع ("+R.filter(r=>r.sold).length+")";nav();render()}
 async function saveCatalog(snapshot,say,extra=[]){
-  try{await commit("تحديث الخواتم",[...siteEntries(),...extra]);refreshAdmin();return true}
+  try{await commit("تحديث الخواتم",[...siteEntries(snapshot),...extra]);refreshAdmin();return true}
   catch(e){restore(snapshot);refreshAdmin();say(adminErr(e));return false}
 }
 const SAVED="انحفظ. الزبائن يشوفون التغيير خلال دقيقة أو دقيقتين.";
