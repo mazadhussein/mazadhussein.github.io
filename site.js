@@ -150,9 +150,12 @@ const ringLink=r=>BASE+"r/"+ringNo(r);
 const priceText=ringPriceText;
 // Prices are set in one currency and shown in both. Sale records keep priceText alone, so totals aren't confused by the second figure.
 const priceBoth=r=>r.price!=null?`${r.price} ألف (${toUsd(r.price)} دولار)`:r.label?`${r.label} (${toIqd(parseFloat(r.label))} ألف)`:priceText(r);
-function ringText(r,short){
+const SHIP_SHORT="التوصيل داخل العراق 5,000 دينار";
+const SHIP_FULL="داخل العراق 5,000 دينار، وخارج العراق حسب الدولة";
+function ringText(r,short,noShip){
   const rows=[["رقم الخاتم",ringNo(r)],["الاسم",r.title],["السعر",priceBoth(r)],["القياس",r.size]];
   if(!short)rows.splice(2,0,["التفنيد",r.q],["النقش",r.nq],["الصياغة",r.sg],["الفئة",tierLabel(r)],["الحجم",gradeName(r)]);
+  if(!noShip)rows.push(["التوصيل",SHIP_FULL]);
   rows.push(["الصورة والفيديو والباركود",ringLink(r)]);
   return rows.filter(x=>x[1]).map(([k,v])=>k+": "+v).join("\n");
 }
@@ -221,11 +224,11 @@ function syncCart(){
   const items=cart.map(byId).filter(Boolean);
   if(!items.length){$("cartBox").innerHTML=`<h3>السلة</h3><p style="color:var(--dim);margin:0">السلة فارغة. اختار الخواتم اللي تعجبك واضغط «أضف للسلة».</p>`;return}
   const sum=items.reduce((a,r)=>a+(r.price||0),0),unpriced=items.filter(r=>r.price==null).length;
-  const order=short=>`السلام عليكم، أريد أحجز هذي الخواتم:\n\n${items.map(r=>ringText(r,short)).join("\n\n")}\n\nالمجموع: ${sum} ألف (${toUsd(sum)} دولار)${unpriced?" + قطع سعرها عند الطلب":""}\n\nرابط الطلب كامل: ${BASE}#order=${items.map(ringNo).join(",")}`;
+  const order=short=>`السلام عليكم، أريد أحجز هذي الخواتم:\n\n${items.map(r=>ringText(r,short,true)).join("\n\n")}\n\nالمجموع: ${sum} ألف (${toUsd(sum)} دولار)${unpriced?" + قطع سعرها عند الطلب":""}\nالتوصيل: ${SHIP_FULL}\n\nرابط الطلب كامل: ${BASE}#order=${items.map(ringNo).join(",")}`;
   // Very long links can fail to open WhatsApp, so a big order drops to the short form of each ring.
   const msg=encodeURIComponent(order(false)).length>6000?order(true):order(false);
   $("cartBox").innerHTML=`<h3>السلة (${items.length})</h3>`+items.map(r=>`<div class="line"><div class="th">${photo(r)}</div><div>${esc(r.title)}</div>${priceHTML(r)}<button type="button" class="rm" data-rm="${r.id}" aria-label="حذف">×</button></div>`).join("")+
-  `<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div>${unpriced?`<p style="margin:0;color:var(--dim);font-size:13px">المجموع بدون ${unpriced} قطعة سعرها عند الطلب.</p>`:""}
+  `<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div><p class="ship-note">المجموع بدون التوصيل: ${SHIP_FULL}.</p>${unpriced?`<p style="margin:0;color:var(--dim);font-size:13px">المجموع بدون ${unpriced} قطعة سعرها عند الطلب.</p>`:""}
   <a class="pill-wa" style="justify-content:center" href="https://wa.me/9647757685741?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">أرسل الطلب على الواتساب</a>`;
 }
 $("cartBtn").onclick=()=>{syncCart();$("cart").showModal()};
@@ -237,7 +240,7 @@ const latinDigits=s=>s.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
 function card(r){const t=T(r.t);return `<article class="card${r.sold?" is-sold":""}" tabindex="0" data-id="${r.id}" style="--metal:${t.metal}">
   <div class="badges">${tierLabel(r)?`<span class="badge">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span class="badge size">${gradeName(r)}</span>`:""}</div><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${!r.sold&&videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
   <div class="in"><h4>${esc(r.title)}</h4><p class="by">${esc(["رقم "+ringNo(r),r.nq,r.sg].filter(Boolean).join(" · "))}</p>
-  <div class="row">${priceHTML(r)}${r.sold?"":addBtn(r)}</div>${adminRow(r)}</div></article>`}
+  <div class="row">${priceHTML(r)}${r.sold?"":addBtn(r)}</div>${r.sold?"":`<p class="ship">${SHIP_SHORT}</p>`}${adminRow(r)}</div></article>`}
 
 function render(){
   const [lo,hi]=slider(),q=$("q").value.trim(),full=lo===100&&hi===650;
@@ -262,7 +265,7 @@ function openFromLink(){const o=location.hash.match(/order=([\d,]+)/);if(o){if(!
 let orderLink="";
 function openOrder(nos){orderLink=nos;const rings=[...new Set(nos.split(",").map(n=>byId(+n-1)))].filter(Boolean),open=rings.filter(r=>!r.sold),sum=open.reduce((a,r)=>a+(r.price||0),0);
   $("orderBox").innerHTML=`<h3>الطلب (${rings.length})</h3>`+(rings.length?rings.map(r=>`<div class="line" data-open="${r.id}"><div class="th">${photo(r)}</div><div>${esc(r.title)}<small class="line-no">رقم ${ringNo(r)}${r.sold?" · تم البيع":""}</small></div>${priceHTML(r)}<span></span></div>`).join(""):`<p style="margin:0;color:var(--dim)">ما لكيت خواتم بهذا الطلب.</p>`)+
-  (open.length?`<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div>`:"")+
+  (open.length?`<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div><p class="ship-note">المجموع بدون التوصيل: ${SHIP_FULL}.</p>`:"")+
   (Admin.ledger&&open.length?`<div class="adm-sale-all"><button type="button" class="adm-btn main" data-order="sold">تم شراء الكل (${open.length})</button><button type="button" class="adm-btn" data-order="reserved">حجز الكل</button></div>`:"");
   if(!$("order").open)$("order").showModal()}
 $("orderX").onclick=()=>$("order").close();
@@ -294,7 +297,7 @@ function openRing(r){const t=T(r.t);openId=r.id;
   $("sheet").innerHTML=`${saleBar(r)}<div class="sheet" style="--metal:${t.metal}">${gallery(r)}<div class="tx">
    ${ringLabels(r).length?`<div class="sheet-badges">${tierLabel(r)?`<span style="border-color:${t.metal};color:${t.metal}">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span>${gradeName(r)}</span>`:""}</div>`:""}
    <h3>${esc(r.title)}</h3><p class="q">${esc(r.q||"")}</p>
-   <div class="specs"><dl>${[["رقم الخاتم",ringNo(r)],["النقش",r.nq],["الصياغة",r.sg],["الحجم",gradeName(r)],["القياس",r.size],["الحجر","عقيق يماني خام"]].filter(x=>x[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+   <div class="specs"><dl>${[["رقم الخاتم",ringNo(r)],["النقش",r.nq],["الصياغة",r.sg],["الحجم",gradeName(r)],["القياس",r.size],["الحجر","عقيق يماني خام"],["التوصيل",r.sold?"":SHIP_FULL]].filter(x=>x[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
    <figure class="qr" id="qrWrap"><img id="qrImg" data-ring="${ringNo(r)}" alt="باركود الخاتم رقم ${ringNo(r)}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="><figcaption>باركود الخاتم</figcaption></figure></div>
    ${r.sold?`<p class="sold-tag">تم البيع</p>`:`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">${priceHTML(r)}
    <span style="display:flex;gap:8px;flex-wrap:wrap">${addBtn(r)}<a class="pill-wa" href="${wa(r)}" target="_blank" rel="noopener">احجز هذا الخاتم</a></span></div>`}
