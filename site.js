@@ -80,13 +80,15 @@ const MARKUP=String.raw`<header class="top"><div class="g">
     <div class="ctry-row" dir="ltr"><button type="button" class="ctry-btn" id="ctryBtn" aria-expanded="false"></button><input name="phone" type="tel" inputmode="tel" maxlength="30" autocomplete="off" dir="ltr" placeholder="رقم الزبون" aria-label="رقم واتساب الزبون"></div>
     <div class="ctry-box" id="ctryBox" hidden><input id="ctrySearch" type="search" placeholder="ابحث عن دولة أو رمز…" aria-label="بحث عن دولة" autocomplete="off"><div class="ctry-list" id="ctryList"></div></div></div>
   <label>عنوان الزبون<input name="address" maxlength="160" autocomplete="off" placeholder="المحافظة، المنطقة"></label>
-  <label>السعر<input name="price" maxlength="40" autocomplete="off"></label>
+  <label id="salePriceOne">السعر<input name="price" maxlength="40" autocomplete="off"></label>
+  <div class="sale-prices" id="salePrices" hidden></div>
   <p class="hint">هذي البيانات تنحفظ بقائمة خاصة بيك. بعد الحفظ تطلع لك رسالة الضمان حتى ترسلها للزبون.</p>
   <p class="msg" id="saleMsg" role="status"></p>
   <div class="acts"><button type="submit" class="adm-btn main" id="saleSave">تم الشراء</button></div>
 </form></dialog>
 <dialog id="ledger"><button class="x" type="button" id="ledgerX" aria-label="إغلاق">×</button><div class="cart-box" id="ledgerBox"></div></dialog>
 <dialog id="guar"><button class="x" type="button" id="guarX" aria-label="إغلاق">×</button><div class="cart-box" id="guarBox"></div></dialog>
+<dialog id="order"><button class="x" type="button" id="orderX" aria-label="إغلاق">×</button><div class="cart-box" id="orderBox"></div></dialog>
 <dialog id="salesPanel"><button class="x" type="button" id="statsX" aria-label="إغلاق">×</button>
   <div class="st st-head"><h3>لوحة المبيعات</h3>
     <form class="st-rate" id="rateF" novalidate><label for="rateIn">سعر الصرف: كل 100 دولار تساوي</label>
@@ -219,7 +221,7 @@ function syncCart(){
   const items=cart.map(byId).filter(Boolean);
   if(!items.length){$("cartBox").innerHTML=`<h3>السلة</h3><p style="color:var(--dim);margin:0">السلة فارغة. اختار الخواتم اللي تعجبك واضغط «أضف للسلة».</p>`;return}
   const sum=items.reduce((a,r)=>a+(r.price||0),0),unpriced=items.filter(r=>r.price==null).length;
-  const order=short=>`السلام عليكم، أريد أحجز هذي الخواتم:\n\n${items.map(r=>ringText(r,short)).join("\n\n")}\n\nالمجموع: ${sum} ألف (${toUsd(sum)} دولار)${unpriced?" + قطع سعرها عند الطلب":""}`;
+  const order=short=>`السلام عليكم، أريد أحجز هذي الخواتم:\n\n${items.map(r=>ringText(r,short)).join("\n\n")}\n\nالمجموع: ${sum} ألف (${toUsd(sum)} دولار)${unpriced?" + قطع سعرها عند الطلب":""}\n\nرابط الطلب كامل: ${BASE}#order=${items.map(ringNo).join(",")}`;
   // Very long links can fail to open WhatsApp, so a big order drops to the short form of each ring.
   const msg=encodeURIComponent(order(false)).length>6000?order(true):order(false);
   $("cartBox").innerHTML=`<h3>السلة (${items.length})</h3>`+items.map(r=>`<div class="line"><div class="th">${photo(r)}</div><div>${esc(r.title)}</div>${priceHTML(r)}<button type="button" class="rm" data-rm="${r.id}" aria-label="حذف">×</button></div>`).join("")+
@@ -255,7 +257,16 @@ function render(){
 $("list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList.contains("card"))e.target.click()});
 $("list").addEventListener("click",e=>{const m=e.target.closest("[data-more]");if(m){const id=m.dataset.more;more[id]=(more[id]||PAGE_STEP)+PAGE_STEP;render();return}const c=e.target.closest(".card");if(c)openRing(byId(+c.dataset.id))});
 // A link or barcode ending in #ring=13 opens that ring directly. A sold ring still opens, marked sold, so its barcode keeps working as a guarantee.
-function openFromLink(){const m=location.hash.match(/ring=(\d+)/);if(!m||$("dlg").open)return;const r=byId(+m[1]-1);if(r)openRing(r)}
+function openFromLink(){const o=location.hash.match(/order=([\d,]+)/);if(o){if(!$("order").open)openOrder(o[1]);return}const m=location.hash.match(/ring=(\d+)/);if(!m||$("dlg").open)return;const r=byId(+m[1]-1);if(r)openRing(r)}
+// A link ending in #order=2,5,9 shows a whole cart. The owner can finish all of it from here in one go.
+let orderLink="";
+function openOrder(nos){orderLink=nos;const rings=[...new Set(nos.split(",").map(n=>byId(+n-1)))].filter(Boolean),open=rings.filter(r=>!r.sold),sum=open.reduce((a,r)=>a+(r.price||0),0);
+  $("orderBox").innerHTML=`<h3>الطلب (${rings.length})</h3>`+(rings.length?rings.map(r=>`<div class="line" data-open="${r.id}"><div class="th">${photo(r)}</div><div>${esc(r.title)}<small class="line-no">رقم ${ringNo(r)}${r.sold?" · تم البيع":""}</small></div>${priceHTML(r)}<span></span></div>`).join(""):`<p style="margin:0;color:var(--dim)">ما لكيت خواتم بهذا الطلب.</p>`)+
+  (open.length?`<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div>`:"")+
+  (Admin.ledger&&open.length?`<div class="adm-sale-all"><button type="button" class="adm-btn main" data-order="sold">تم شراء الكل (${open.length})</button><button type="button" class="adm-btn" data-order="reserved">حجز الكل</button></div>`:"");
+  if(!$("order").open)$("order").showModal()}
+$("orderX").onclick=()=>$("order").close();
+$("orderBox").addEventListener("click",e=>{const a=e.target.closest("[data-order]");if(a){openSaleOrder(orderLink,a.dataset.order);return}const l=e.target.closest("[data-open]");if(l)openRing(byId(+l.dataset.open))});
 addEventListener("hashchange",openFromLink);
 // The barcode library loads only when a ring is opened. The image can be saved from the phone like any photo.
 let qrLib;
@@ -401,9 +412,29 @@ function wireCountries(){$("ctryBtn").onclick=()=>showCountries($("ctryBox").hid
 function openSale(r,kind,doc){if(!r)return;const el=$("saleF").elements,old=doc&&Admin.sales.find(s=>s.id===doc);
   Admin.sale={r,kind,doc:doc||null};$("saleF").reset();setCountry(old&&old.iso&&countryList().by.get(old.iso)||countryList().iraq);el.address.value=old&&old.address||"";
   $("saleT").textContent=(kind==="sold"?"تم الشراء: ":"حجز: ")+"رقم "+ringNo(r)+" · "+r.title;
+  $("salePriceOne").hidden=false;$("salePrices").hidden=true;$("salePrices").innerHTML="";
   el.name.value=old&&old.name||"";el.phone.value=old&&old.phone||"";el.price.value=old&&old.price||priceText(r);
   $("saleSave").textContent=kind==="sold"?"تم الشراء":"سجّل الحجز";$("saleSave").disabled=false;$("saleMsg").textContent="";
   $("sale").showModal()}
+// One form for a whole cart: the customer's details once, and a price for each ring.
+function openSaleOrder(nos,kind){const rings=[...new Set(nos.split(",").map(n=>byId(+n-1)))].filter(r=>r&&!r.sold);if(!rings.length)return;
+  const el=$("saleF").elements;$("saleF").reset();Admin.sale={order:rings,kind,orderId:"o"+Date.now()};setCountry(countryList().iraq);el.address.value="";
+  $("saleT").textContent=(kind==="sold"?"تم شراء الكل: ":"حجز الكل: ")+rings.length+" خواتم";
+  $("salePriceOne").hidden=true;$("salePrices").hidden=false;
+  $("salePrices").innerHTML=rings.map(r=>`<label>رقم ${ringNo(r)} · ${esc(r.title)}<input data-ring="${r.id}" maxlength="40" autocomplete="off" value="${esc(priceText(r))}"></label>`).join("");
+  $("saleSave").textContent=kind==="sold"?"تم شراء الكل":"سجّل الحجز";$("saleSave").disabled=false;$("saleMsg").textContent="";
+  $("sale").showModal()}
+async function submitOrderSale(S,say){const el=$("saleF").elements,btn=$("saleSave"),name=el.name.value.trim(),phone=el.phone.value.trim(),address=el.address.value.trim();
+  if(!waNumber(phone,saleCountry.dial)){say("اكتب رقم واتساب الزبون كامل.");return}
+  btn.disabled=true;say("دا أحفظ…");const at=Date.now(),num=waNumber(phone,saleCountry.dial);
+  const bodies=S.order.map(r=>({id:S.orderId+"-"+r.id,orderId:S.orderId,ringId:r.id,no:ringNo(r),title:r.title,photo:photoUrl(r),kind:S.kind,name,phone,dial:saleCountry.dial,iso:saleCountry.iso,address,price:$("salePrices").querySelector(`[data-ring="${r.id}"]`).value.trim(),at}));
+  const ids=new Set(bodies.map(b=>b.id)),rings=new Set(bodies.map(b=>b.ringId));
+  // A reservation by the same customer becomes this sale, so the ring isn't listed twice.
+  try{await writeSales(list=>[...list.filter(s=>!ids.has(s.id)&&!(s.kind!=="sold"&&rings.has(s.ringId)&&waNumber(s.phone,s.dial)===num)),...bodies],(S.kind==="sold"?"بيع":"حجز")+" طلب من "+bodies.length+" خواتم")}
+  catch(x){say(adminErr(x));btn.disabled=false;return}
+  if(S.kind==="sold"){const snapshot=JSON.stringify(catalogRows());S.order.forEach(r=>{r.sold=true;r.soldAt=at});say("انحفظ البيع، دا أعلّم الخواتم «تم البيع»…");
+    if(!await saveCatalog(snapshot,say)){btn.disabled=false;return}}
+  $("sale").close();if($("order").open)openOrder(orderLink);openGuar(bodies)}
 // A local Iraqi number (07...) becomes the international form a WhatsApp link needs.
 // A number typed with + or 00 is used as it is. Otherwise the chosen country's code goes in front, replacing a local leading 0.
 const waNumber=(p,dial)=>{const raw=latinDigits(String(p||"")).trim();let d=raw.replace(/\D/g,"");if(!d)return "";if(/^(\+|00)/.test(raw))d=d.replace(/^00/,"");else{const c=dial||"964";if(!(d.startsWith(c)&&d.length>=c.length+7))d=c+d.replace(/^0/,"")}return d.length>=8?d:""};
@@ -414,22 +445,23 @@ const guarText=s=>[`السلام عليكم${s.name?" "+s.name:""}،`,"هذا ب
 const salePhoto=s=>{const r=byId(s.ringId);return s.photo||(r?photoUrl(r):"")};
 const loadImg=u=>new Promise(ok=>{if(!u)return ok(null);const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=u});
 // A free WhatsApp link fills in the text and the owner presses send. The picture goes through the phone's share list, once the customer's chat is open.
-async function openGuar(s){const box=$("guarBox"),r=byId(s.ringId)||{id:s.no-1,title:s.title};Admin.guar=null;
-  try{await loadQr();const c=qrCanvas(r,guarLines(s),await loadImg(salePhoto(s)));Admin.guar={s,canvas:c};
+const guarOrderText=list=>{const s=list[0];return [`السلام عليكم${s.name?" "+s.name:""}،`,"هذي باركودات الضمان لخواتمك من خواتم العقيق:","",...list.flatMap(x=>["رقم الخاتم: "+x.no,"الاسم: "+x.title,x.price&&"السعر: "+x.price,"رابط الضمان: "+BASE+"r/"+x.no,""].filter(l=>l!==null&&l!==undefined&&l!==false)),(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"احتفظ بهذي الرسالة."].filter(l=>l||l==="").join("\n")};
+async function openGuar(input){const list=Array.isArray(input)?input:[input],s=list[0],box=$("guarBox"),many=list.length>1;Admin.guar=null;
+  try{await loadQr();const cards=[];for(const x of list)cards.push(qrCanvas(byId(x.ringId)||{id:x.no-1,title:x.title},guarLines(x),await loadImg(salePhoto(x))));Admin.guar={list,cards};
     const num=waNumber(s.phone,s.dial);
-    box.innerHTML=`<h3>باركود الضمان</h3><img class="guar-card" src="${c.toDataURL("image/png")}" alt="باركود الضمان للخاتم رقم ${esc(s.no)}">
-    ${num?`<a class="pill-wa" href="https://wa.me/${num}?text=${encodeURIComponent(guarText(s))}" target="_blank" rel="noopener">1. افتح محادثة الزبون وأرسل الرسالة</a>`:`<p style="margin:0;color:var(--carnelian)">رقم الزبون ما مكتوب صح. عدّله من قائمة المبيعات.</p>`}
-    <button type="button" class="pill-wa" id="guarShare">2. أرسل صورة الباركود</button>
+    box.innerHTML=`<h3>باركود الضمان${many?` (${list.length})`:""}</h3>${cards.map((c,i)=>`<img class="guar-card" src="${c.toDataURL("image/png")}" alt="باركود الضمان للخاتم رقم ${esc(list[i].no)}">`).join("")}
+    ${num?`<a class="pill-wa" href="https://wa.me/${num}?text=${encodeURIComponent(many?guarOrderText(list):guarText(s))}" target="_blank" rel="noopener">1. افتح محادثة الزبون وأرسل الرسالة</a>`:`<p style="margin:0;color:var(--carnelian)">رقم الزبون ما مكتوب صح. عدّله من قائمة المبيعات.</p>`}
+    <button type="button" class="pill-wa" id="guarShare">2. أرسل ${many?"صور الباركود":"صورة الباركود"}</button>
     <p class="led-note" id="guarNote">بالخطوة الثانية اختار الواتساب وبعدها محادثة الزبون.</p>`;
     $("guarShare").onclick=shareGuar;
   }catch(x){box.innerHTML=`<h3>باركود الضمان</h3><p style="margin:0">ما كدرت أجهز الباركود. تأكد من النت وجرب من قائمة المبيعات.</p>`}
   if(!$("guar").open)$("guar").showModal()}
 async function shareGuar(){const G=Admin.guar,note=$("guarNote");if(!G)return;const hold="موبايلك ما سمح بالإرسال المباشر. اضغط مطول على الصورة فوق واحفظها، وبعدها أرسلها بمحادثة الزبون.";
-  const bin=atob(G.canvas.toDataURL("image/png").split(",")[1]),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);
-  const files=[new File([a],"guarantee-ring-"+G.s.no+".png",{type:"image/png"})];
+  const files=G.cards.map((c,k)=>{const bin=atob(c.toDataURL("image/png").split(",")[1]),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new File([a],"guarantee-ring-"+G.list[k].no+".png",{type:"image/png"})});
   if(!navigator.canShare||!navigator.canShare({files})){note.textContent=hold;return}
   try{await navigator.share({files})}catch(x){if(!x||x.name!=="AbortError")note.textContent=hold}}
 async function submitSale(e){e.preventDefault();const S=Admin.sale,el=$("saleF").elements,btn=$("saleSave"),say=t=>{$("saleMsg").textContent=t};
+  if(S.order){await submitOrderSale(S,say);return}
   const name=el.name.value.trim(),phone=el.phone.value.trim(),address=el.address.value.trim();if(!waNumber(phone,saleCountry.dial)){say("اكتب رقم واتساب الزبون كامل.");return}
   btn.disabled=true;say("دا أحفظ…");
   const old=S.doc&&Admin.sales.find(s=>s.id===S.doc),id=S.doc||"s"+Date.now();
@@ -505,7 +537,7 @@ async function enterAdmin(){
     if(await saveCatalog(snapshot,t=>{$("admMsg").textContent=t})){$("adm").close();toast(SAVED)}else b.disabled=false};
   $("ledgerX").onclick=()=>$("ledger").close();$("saleX").onclick=()=>$("sale").close();$("guarX").onclick=()=>$("guar").close();
   $("saleF").addEventListener("submit",submitSale);
-  $("ledgerBox").addEventListener("click",async e=>{const g=e.target.closest("[data-guar]");if(g){const s=Admin.sales.find(x=>x.id===g.dataset.guar);if(s)openGuar(s);return}
+  $("ledgerBox").addEventListener("click",async e=>{const g=e.target.closest("[data-guar]");if(g){const s=Admin.sales.find(x=>x.id===g.dataset.guar);if(s)openGuar(s.orderId?Admin.sales.filter(x=>x.orderId===s.orderId):s);return}
     const b=e.target.closest("[data-del]");if(!b)return;
     if(!b.dataset.sure){b.dataset.sure="1";b.textContent="متأكد؟ اضغط مرة ثانية";return}
     b.disabled=true;try{await writeSales(list=>list.filter(s=>s.id!==b.dataset.del),"حذف سطر")}catch(x){b.disabled=false;toast(adminErr(x))}});
@@ -518,6 +550,7 @@ async function enterAdmin(){
   refreshAdmin();
   // A ring opened from a link before admin mode was known gets its sale buttons now.
   if($("dlg").open&&openId!=null)openRing(byId(openId));
+  if($("order").open)openOrder(orderLink);
 }
 function showLogin(msg){const el=$("loginF").elements;$("loginOwner").hidden=IS_PAGES;$("loginMsg").textContent=msg||"";el.owner.value=GH.owner||store.get(KEY_OWNER)||"";$("login").showModal()}
 async function submitLogin(e){e.preventDefault();const el=$("loginF").elements,say=t=>{$("loginMsg").textContent=t},btn=$("loginGo");
