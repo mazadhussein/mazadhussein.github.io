@@ -8,7 +8,7 @@ function pageHtml(rows){
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>خواتم العقيق</title>
 <meta name="description" content="عقيق يماني خام، نقش يدوي، وصياغة فضة بحرينية. نرسل لكل محافظات العراق.">
-<meta property="og:title" content="خواتم العقيق"><meta property="og:description" content="عقيق يماني خام، نقش يدوي، وصياغة فضة بحرينية."><meta property="og:image" content="img/logo.jpg"><meta property="og:type" content="website">
+<meta property="og:title" content="خواتم العقيق"><meta property="og:description" content="عقيق يماني خام، نقش يدوي، وصياغة فضة بحرينية."><meta property="og:image" content="https://khawatim-alaqeeq.pages.dev/img/logo.jpg"><meta property="og:type" content="website">
 <link rel="icon" href="img/emblem.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
