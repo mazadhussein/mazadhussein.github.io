@@ -143,7 +143,8 @@ function ringText(r,short){
 const WA_TEXT="https://wa.me/9647757685741?text=";
 const wa=r=>WA_TEXT+encodeURIComponent("السلام عليكم، أريد أحجز هذا الخاتم:\n"+ringText(r));
 const photo=(r,alt)=>photoUrl(r)?`<img src="${esc(photoUrl(r))}" alt="${esc(alt||r.title)}" loading="lazy">`:`<div class="seal"><i style="--st:${ST[r.s]}"></i></div>`;
-const gallery=r=>videoUrl(r)?`<div class="gal" id="gal"><div class="track" id="track" dir="rtl">
+// A sold ring shows its photo only, so its video is never downloaded. The file stays, so «رجّعه للموقع» brings the video back.
+const gallery=r=>!r.sold&&videoUrl(r)?`<div class="gal" id="gal"><div class="track" id="track" dir="rtl">
     <div class="slide">${photo(r)}</div>
     <div class="slide"><video id="vid" controls playsinline preload="none" poster="${esc(photoUrl(r))}" aria-label="فيديو ${esc(r.title)}"><source src="${esc(videoUrl(r))}"></video></div>
   </div><span class="tip" id="tip">اسحب لليمين للفيديو →</span>
@@ -218,7 +219,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(
 
 const latinDigits=s=>s.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
 function card(r){const t=T(r.t);return `<article class="card${r.sold?" is-sold":""}" tabindex="0" data-id="${r.id}" style="--metal:${t.metal}">
-  <div class="badges">${tierLabel(r)?`<span class="badge">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span class="badge size">${gradeName(r)}</span>`:""}</div><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
+  <div class="badges">${tierLabel(r)?`<span class="badge">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span class="badge size">${gradeName(r)}</span>`:""}</div><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${!r.sold&&videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
   <div class="in"><h4>${esc(r.title)}</h4><p class="by">${esc(["رقم "+ringNo(r),r.nq,r.sg].filter(Boolean).join(" · "))}</p>
   <div class="row">${priceHTML(r)}${r.sold?"":addBtn(r)}</div>${adminRow(r)}</div></article>`}
 
