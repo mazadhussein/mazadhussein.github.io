@@ -2,7 +2,7 @@
 // WhatsApp reads a ring page's preview tags, and a visitor is sent straight on to that ring on the main site.
 const htmlEsc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const ringPriceText=r=>r.price!=null?r.price+" ألف":r.label||"السعر عند الطلب";
-function pageHtml(rows){
+function pageHtml(rows,settings){
   const data=rows.map(r=>JSON.stringify(r).replace(/</g,"\\u003c")).join(",\n");
   return `<!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -14,6 +14,7 @@ function pageHtml(rows){
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="site.css"></head><body>
 <div id="app"></div>
+<script type="application/json" id="settings">${JSON.stringify(settings||{rate:152})}</`+`script>
 <script type="application/json" id="catalog">[
 ${data}
 ]</`+`script>

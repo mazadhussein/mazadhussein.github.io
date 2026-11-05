@@ -84,7 +84,12 @@ const MARKUP=String.raw`<header class="top"><div class="g">
 </form></dialog>
 <dialog id="ledger"><button class="x" type="button" id="ledgerX" aria-label="إغلاق">×</button><div class="cart-box" id="ledgerBox"></div></dialog>
 <dialog id="guar"><button class="x" type="button" id="guarX" aria-label="إغلاق">×</button><div class="cart-box" id="guarBox"></div></dialog>
-<dialog id="salesPanel"><button class="x" type="button" id="statsX" aria-label="إغلاق">×</button><div id="statsBox"></div></dialog>
+<dialog id="salesPanel"><button class="x" type="button" id="statsX" aria-label="إغلاق">×</button>
+  <div class="st st-head"><h3>لوحة المبيعات</h3>
+    <form class="st-rate" id="rateF" novalidate><label for="rateIn">سعر الصرف: كل 100 دولار تساوي</label>
+      <div class="st-rate-row"><input id="rateIn" type="number" inputmode="numeric" min="50" max="500" step="0.5" dir="ltr"><span>ألف دينار</span><button type="submit" class="adm-btn main" id="rateSave">حفظ</button></div>
+      <p class="led-note" id="rateMsg" role="status"></p></form></div>
+  <div id="statsBox"></div></dialog>
 <dialog id="login"><button class="x" type="button" id="loginX" aria-label="إغلاق">×</button><form id="loginF" novalidate>
   <h3>دخول الآدمن</h3>
   <label id="loginOwner">اسم الحساب على GitHub<input name="owner" autocomplete="off" dir="ltr" autocapitalize="off"></label>
@@ -111,6 +116,10 @@ const ST={karazi:"radial-gradient(circle at 35% 30%,#e0604f,#6e130c 72%)",karaz:
 // price = thousand IQD, null = on request. img = clear photo and video name. photoOnly = the channel has a photo but no video.
 // The tier comes from the price, see tierOf below.
 const R=JSON.parse(document.getElementById("catalog").textContent);
+// Exchange rate: thousands of dinars per 100 dollars. The owner changes it from the ☰ menu.
+const SETTINGS={rate:152};try{Object.assign(SETTINGS,JSON.parse(document.getElementById("settings").textContent))}catch(e){}
+const toUsd=k=>Math.round(k*100/SETTINGS.rate);
+const toIqd=d=>Math.round(d*SETTINGS.rate/100);
 // سوبر VIP is chosen by hand. Otherwise 300 and up is VIP and the rest is وسط. A piece priced in dollars is VIP; a piece with no price yet waits in وسط.
 const tierOf=r=>r.super?"super":r.label||r.price>=300?"vip":"wasat";
 R.forEach(r=>{r.t=tierOf(r)});
@@ -134,8 +143,10 @@ const BASE=IS_PAGES?"https://"+SITE_HOST+"/":new URL(".",location.href).href;
 const ringNo=r=>r.id+1;
 const ringLink=r=>BASE+"r/"+ringNo(r);
 const priceText=ringPriceText;
+// Prices are set in one currency and shown in both. Sale records keep priceText alone, so totals aren't confused by the second figure.
+const priceBoth=r=>r.price!=null?`${r.price} ألف (${toUsd(r.price)} دولار)`:r.label?`${r.label} (${toIqd(parseFloat(r.label))} ألف)`:priceText(r);
 function ringText(r,short){
-  const rows=[["رقم الخاتم",ringNo(r)],["الاسم",r.title],["السعر",priceText(r)],["القياس",r.size]];
+  const rows=[["رقم الخاتم",ringNo(r)],["الاسم",r.title],["السعر",priceBoth(r)],["القياس",r.size]];
   if(!short)rows.splice(2,0,["التفنيد",r.q],["النقش",r.nq],["الصياغة",r.sg],["الفئة",tierLabel(r)],["الحجم",gradeName(r)]);
   rows.push(["الصورة والفيديو والباركود",ringLink(r)]);
   return rows.filter(x=>x[1]).map(([k,v])=>k+": "+v).join("\n");
@@ -160,7 +171,7 @@ function wireGallery(){
   tr.addEventListener("scroll",()=>set(Math.abs(tr.scrollLeft)>tr.clientWidth/2),{passive:true});
   $("tabP").onclick=()=>show(0);$("tabV").onclick=()=>show(1);
 }
-const priceHTML=r=>r.price!=null?`<span class="price">${r.price}<small>ألف</small></span>`:`<span class="ask">${r.label?esc(r.label):"السعر عند الطلب"}</span>`;
+const priceHTML=r=>r.price!=null?`<span class="price">${r.price}<small>ألف</small><em class="usd" dir="ltr">$${toUsd(r.price)}</em></span>`:r.label?`<span class="ask">${esc(r.label)}<em class="usd">${toIqd(parseFloat(r.label))} ألف</em></span>`:`<span class="ask">السعر عند الطلب</span>`;
 
 // stats + marquee
 const priced=live().filter(r=>r.price!=null).map(r=>r.price);
@@ -205,11 +216,11 @@ function syncCart(){
   const items=cart.map(byId).filter(Boolean);
   if(!items.length){$("cartBox").innerHTML=`<h3>السلة</h3><p style="color:var(--dim);margin:0">السلة فارغة. اختار الخواتم اللي تعجبك واضغط «أضف للسلة».</p>`;return}
   const sum=items.reduce((a,r)=>a+(r.price||0),0),unpriced=items.filter(r=>r.price==null).length;
-  const order=short=>`السلام عليكم، أريد أحجز هذي الخواتم:\n\n${items.map(r=>ringText(r,short)).join("\n\n")}\n\nالمجموع: ${sum} ألف${unpriced?" + قطع سعرها عند الطلب":""}`;
+  const order=short=>`السلام عليكم، أريد أحجز هذي الخواتم:\n\n${items.map(r=>ringText(r,short)).join("\n\n")}\n\nالمجموع: ${sum} ألف (${toUsd(sum)} دولار)${unpriced?" + قطع سعرها عند الطلب":""}`;
   // Very long links can fail to open WhatsApp, so a big order drops to the short form of each ring.
   const msg=encodeURIComponent(order(false)).length>6000?order(true):order(false);
   $("cartBox").innerHTML=`<h3>السلة (${items.length})</h3>`+items.map(r=>`<div class="line"><div class="th">${photo(r)}</div><div>${esc(r.title)}</div>${priceHTML(r)}<button type="button" class="rm" data-rm="${r.id}" aria-label="حذف">×</button></div>`).join("")+
-  `<div class="total"><span>المجموع</span><span>${sum} ألف د.ع</span></div>${unpriced?`<p style="margin:0;color:var(--dim);font-size:13px">المجموع بدون ${unpriced} قطعة سعرها عند الطلب.</p>`:""}
+  `<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div>${unpriced?`<p style="margin:0;color:var(--dim);font-size:13px">المجموع بدون ${unpriced} قطعة سعرها عند الطلب.</p>`:""}
   <a class="pill-wa" style="justify-content:center" href="https://wa.me/9647757685741?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">أرسل الطلب على الواتساب</a>`;
 }
 $("cartBtn").onclick=()=>{syncCart();$("cart").showModal()};
@@ -310,7 +321,7 @@ async function uploadFile(blob,path){const r=await api(`/repos/${pubRepo()}/git/
 const catalogRows=()=>R.map(({t,...r})=>r);
 // A save writes the main page and the pages of the rings that changed, so it stays quick with hundreds of rings.
 function siteEntries(snapshot){const base=`https://${SITE_HOST}/`,rows=catalogRows(),before=new Map((snapshot?JSON.parse(snapshot):[]).map(r=>[r.id,JSON.stringify(r)]));
-  return [{path:"index.html",content:pageHtml(rows)},...rows.filter(r=>before.get(r.id)!==JSON.stringify(r)).map(r=>({path:"r/"+(r.id+1)+".html",content:ringPage(r,base)}))]}
+  return [{path:"index.html",content:pageHtml(rows,SETTINGS)},...rows.filter(r=>before.get(r.id)!==JSON.stringify(r)).map(r=>({path:"r/"+(r.id+1)+".html",content:ringPage(r,base)}))]}
 const restore=snapshot=>{const now=JSON.parse(snapshot);R.length=0;now.forEach(r=>{r.t=tierOf(r);R.push(r)})};
 function refreshAdmin(){$("admSold").textContent=Admin.showSold?"كل الخواتم":"المبيوع ("+R.filter(r=>r.sold).length+")";nav();render()}
 async function saveCatalog(snapshot,say,extra=[]){
@@ -431,7 +442,7 @@ function renderStats(){if(!$("salesPanel").open)return;
   const buyers=topBuyers(sold),avail=live(),availValue=avail.reduce((a,r)=>a+(r.price||0),0);
   const tiers=TIERS.map(t=>({t,n:sold.filter(s=>{const r=byId(s.ringId);return r&&r.t===t.id}).length})).filter(x=>x.n);
   const logged=new Set(sold.map(s=>s.ringId)),unlogged=R.filter(r=>r.sold&&!logged.has(r.id)).length;
-  $("statsBox").innerHTML=`<div class="st"><h3>لوحة المبيعات</h3><p class="led-note">تشوفها إنت بس. الأسبوع يبدأ من السبت.</p>
+  $("statsBox").innerHTML=`<div class="st"><p class="led-note">تشوفها إنت بس. الأسبوع يبدأ من السبت.</p>
   <div class="st-grid">${stat("هذا الأسبوع",week)}${stat("هذا الشهر",month)}${stat("كل المبيعات",sold)}<div class="st-card"><span>حجوزات مفتوحة</span><b>${reserved.length}</b><small>بانتظار الشراء</small></div></div>
   <h4>أرقام سريعة</h4><dl class="st-list"><dt>مجموع المبيعات</dt><dd>${moneyText(all)}</dd>${withIqd.length?`<dt>متوسط سعر البيع</dt><dd>${Math.round(addMoney(withIqd).iqd/withIqd.length).toLocaleString("en-US")} ألف</dd>`:""}<dt>خواتم معروضة</dt><dd>${avail.length}</dd><dt>قيمة المعروض</dt><dd>${availValue.toLocaleString("en-US")} ألف</dd></dl>
   <h4>أكثر الزبائن شراءً</h4>${buyers.length?`<ol class="st-buyers">${buyers.map(b=>`<li><div><b>${esc(b.name||"بدون اسم")}</b><span dir="ltr">${esc(b.phone||"")}</span></div><div class="st-r"><b>${b.list.length} ${b.list.length===1?"خاتم":"خواتم"}</b><small>${moneyText(addMoney(b.list))}</small>${b.num?`<a href="https://wa.me/${b.num}" target="_blank" rel="noopener">واتساب</a>`:""}</div></li>`).join("")}</ol>`:`<p class="led-note">بعد ما مسجل مبيعات.</p>`}
@@ -451,8 +462,15 @@ document.addEventListener("click",async e=>{
 },true);
 
 // The page visitors load can be a minute behind, so the admin always starts from the newest saved catalogue.
-async function loadLive(){const f=await api(`/repos/${pubRepo()}/contents/index.html`),m=unb64(f.content).match(/<script type="application\/json" id="catalog">([\s\S]*?)<\/script>/);
-  if(!m)throw {status:0};const rows=JSON.parse(m[1]);R.length=0;rows.forEach(r=>{r.t=tierOf(r);R.push(r)})}
+async function loadLive(){const f=await api(`/repos/${pubRepo()}/contents/index.html`),page=unb64(f.content),m=page.match(/<script type="application\/json" id="catalog">([\s\S]*?)<\/script>/),s=page.match(/<script type="application\/json" id="settings">([\s\S]*?)<\/script>/);
+  if(!m)throw {status:0};if(s)Object.assign(SETTINGS,JSON.parse(s[1]));const rows=JSON.parse(m[1]);R.length=0;rows.forEach(r=>{r.t=tierOf(r);R.push(r)})}
+async function submitRate(e){e.preventDefault();const say=t=>{$("rateMsg").textContent=t},n=parseFloat(latinDigits($("rateIn").value)),old=SETTINGS.rate;
+  if(!(n>=50&&n<=500)){say("اكتب رقم بين 50 و500.");return}
+  if(n===old){say("هذا نفس السعر الحالي.");return}
+  $("rateSave").disabled=true;say("دا أحفظ…");SETTINGS.rate=n;
+  const ok=await saveCatalog(JSON.stringify(catalogRows()),say);
+  if(ok){syncCart();say("انحفظ. الأسعار بالدولار تتحدث عند الزبائن خلال دقيقة أو دقيقتين.")}else{SETTINGS.rate=old;$("rateIn").value=old;refreshAdmin()}
+  $("rateSave").disabled=false}
 async function enterAdmin(){
   const repo=await api(`/repos/${pubRepo()}`);if(!repo.permissions||!repo.permissions.push)throw {status:403};
   await loadLive();
@@ -473,7 +491,8 @@ async function enterAdmin(){
   try{await loadSales();Admin.ledger=true;$("admLedger").hidden=false;$("admLedger").onclick=()=>{$("ledger").showModal();renderLedger()};
     $("admMenu").hidden=false;$("statsX").onclick=()=>$("salesPanel").close();
     $("salesPanel").addEventListener("click",e=>{if(e.target===$("salesPanel"))$("salesPanel").close()});
-    $("admMenu").onclick=()=>{$("salesPanel").showModal();renderStats();loadSales().catch(()=>{})}}
+    $("rateF").addEventListener("submit",submitRate);
+    $("admMenu").onclick=()=>{$("rateIn").value=SETTINGS.rate;$("rateMsg").textContent="";$("salesPanel").showModal();renderStats();loadSales().catch(()=>{})}}
   catch(e){toast("ما كدرت أقرا قائمة المبيعات: "+adminErr(e))}
   refreshAdmin();
   // A ring opened from a link before admin mode was known gets its sale buttons now.
