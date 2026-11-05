@@ -9,8 +9,8 @@ const MARKUP=String.raw`<header class="top"><div class="g">
 <section class="hero" id="top"><div class="g">
   <div>
     <div class="eyebrow">عقيق يماني · نقش يدوي · صياغة بحرينية</div>
-    <h1>خاتمٌ يُحكى<em>لا يُلبس فقط</em></h1>
-    <p class="lede">كل قطعة عندنا حجر خام من اليمن، منقوش بأنامل خطّاطين معروفين، ومصاغ بالفضة على إيد صاغة البحرين. اختار فئتك وسعرك، والحجز بكلمة على الواتساب.</p>
+    <h1>عقيقٌ يليق بك<em>ونقشٌ يدوم</em></h1>
+    <p class="lede">اختار خاتمك، احجزه بالواتساب، ويوصلك ويا باركود ضمان.</p>
     <div class="cta">
       <a class="pill-wa" href="#shop">تصفّح الخواتم</a>
       <a class="ghost" href="https://wa.me/9647757685741" target="_blank" rel="noopener">اسأل عن قطعة</a>
