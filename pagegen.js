@@ -6,9 +6,9 @@ function pageHtml(rows){
   const data=rows.map(r=>JSON.stringify(r).replace(/</g,"\\u003c")).join(",\n");
   return `<!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>مزاد حسين للخواتم</title>
+<title>خواتم العقيق</title>
 <meta name="description" content="عقيق يماني خام، نقش يدوي، وصياغة فضة بحرينية. نرسل لكل محافظات العراق.">
-<meta property="og:title" content="مزاد حسين للخواتم"><meta property="og:description" content="عقيق يماني خام، نقش يدوي، وصياغة فضة بحرينية."><meta property="og:image" content="img/logo.jpg"><meta property="og:type" content="website">
+<meta property="og:title" content="خواتم العقيق"><meta property="og:description" content="عقيق يماني خام، نقش يدوي، وصياغة فضة بحرينية."><meta property="og:image" content="img/logo.jpg"><meta property="og:type" content="website">
 <link rel="icon" href="img/emblem.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
@@ -29,7 +29,7 @@ function ringPage(r,base){
 <title>${htmlEsc(title)}</title>
 <meta name="description" content="${htmlEsc(desc)}">
 <meta property="og:title" content="${htmlEsc(title)}"><meta property="og:description" content="${htmlEsc(desc)}">
-<meta property="og:image" content="${htmlEsc(base+pic)}"><meta property="og:url" content="${htmlEsc(base+"r/"+no+".html")}"><meta property="og:type" content="website"><meta property="og:site_name" content="مزاد حسين للخواتم">
+<meta property="og:image" content="${htmlEsc(base+pic)}"><meta property="og:url" content="${htmlEsc(base+"r/"+no+".html")}"><meta property="og:type" content="website"><meta property="og:site_name" content="خواتم العقيق">
 <meta name="twitter:card" content="summary_large_image">
 <script>location.replace(${JSON.stringify(to)})</`+`script>
 </head><body style="background:#140908;color:#f4e9e1;font-family:Tahoma,sans-serif;text-align:center;padding:40px 16px">

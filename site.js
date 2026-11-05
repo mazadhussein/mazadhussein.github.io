@@ -1,5 +1,5 @@
 const MARKUP=String.raw`<header class="top"><div class="g">
-  <a class="brand" href="#top"><img src="img/emblem.jpg" alt="شعار مزاد حسين"><span>مزاد <b>حسين</b></span></a>
+  <a class="brand" href="#top"><img src="img/emblem.jpg" alt="شعار خواتم العقيق"><span>خواتم <b>العقيق</b></span></a>
   <nav class="nav" id="nav" aria-label="الأقسام"></nav>
   <button type="button" class="menu-btn" id="admMenu" aria-label="لوحة المبيعات" hidden>☰</button>
   <button type="button" class="cart-btn" id="cartBtn">السلة<b id="cartN">0</b></button>
@@ -51,7 +51,7 @@ const MARKUP=String.raw`<header class="top"><div class="g">
 <dialog id="dlg"><button class="x" type="button" id="x" aria-label="إغلاق">×</button><div id="sheet"></div></dialog>
 
 <footer class="foot"><div class="g">
-  <div><img class="logo-foot" src="img/logo.jpg" alt="شعار مزاد حسين الصائغ"><div class="big">مزاد حسين للخواتم البحريني</div><p>عقيق يماني خام، خطوط مبدعين، وصياغة فضة بحرينية. نرسل لكل محافظات العراق.</p></div>
+  <div><img class="logo-foot" src="img/logo.jpg" alt="شعار خواتم العقيق"><div class="big">خواتم العقيق</div><p>عقيق يماني خام، خطوط مبدعين، وصياغة فضة بحرينية. نرسل لكل محافظات العراق.</p></div>
   <div><h5>للحجز والسعر</h5><div class="num">0775 768 5741</div><p>واتساب أو خاص بالصفحة</p></div>
   <div><h5>ملاحظة</h5><p>الأسعار والتوفر قابلة للتغيير. تأكد من القطعة على الواتساب قبل التحويل.</p></div>
 </div></footer>
@@ -366,8 +366,8 @@ function openSale(r,kind,doc){if(!r)return;const el=$("saleF").elements,old=doc&
 // A local Iraqi number (07...) becomes the international form a WhatsApp link needs.
 const waNumber=p=>{let d=latinDigits(String(p||"")).replace(/\D/g,"").replace(/^00/,"");if(d.startsWith("0"))d="964"+d.slice(1);return d.length>=10?d:""};
 const dateText=at=>new Date(at).toLocaleDateString("en-GB");
-const guarLines=s=>["خاتم رقم "+s.no+" · "+s.title,s.name&&"الزبون: "+s.name,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"مزاد حسين للخواتم"].filter(Boolean);
-const guarText=s=>[`السلام عليكم${s.name?" "+s.name:""}،`,"هذا باركود الضمان لخاتمك من مزاد حسين للخواتم:","رقم الخاتم: "+s.no,"الاسم: "+s.title,s.price&&"السعر: "+s.price,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"رابط الضمان: "+BASE+"r/"+s.no+".html","احتفظ بهذي الرسالة."].filter(Boolean).join("\n");
+const guarLines=s=>["خاتم رقم "+s.no+" · "+s.title,s.name&&"الزبون: "+s.name,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"خواتم العقيق"].filter(Boolean);
+const guarText=s=>[`السلام عليكم${s.name?" "+s.name:""}،`,"هذا باركود الضمان لخاتمك من خواتم العقيق:","رقم الخاتم: "+s.no,"الاسم: "+s.title,s.price&&"السعر: "+s.price,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"رابط الضمان: "+BASE+"r/"+s.no+".html","احتفظ بهذي الرسالة."].filter(Boolean).join("\n");
 // A free WhatsApp link fills in the text and the owner presses send. The picture goes through the phone's share list, once the customer's chat is open.
 async function openGuar(s){const box=$("guarBox"),r=byId(s.ringId)||{id:s.no-1,title:s.title};Admin.guar=null;
   try{await loadQr();const c=qrCanvas(r,guarLines(s));Admin.guar={s,canvas:c};
