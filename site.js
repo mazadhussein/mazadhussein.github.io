@@ -76,7 +76,10 @@ const MARKUP=String.raw`<header class="top"><div class="g">
 <dialog id="sale"><button class="x" type="button" id="saleX" aria-label="إغلاق">×</button><form id="saleF" novalidate>
   <h3 id="saleT"></h3>
   <label>اسم الزبون<input name="name" maxlength="80" autocomplete="off"></label>
-  <label>رقم واتساب الزبون<input name="phone" type="tel" inputmode="tel" maxlength="30" autocomplete="off" dir="ltr" placeholder="07XX XXX XXXX"></label>
+  <div class="ctry-wrap"><span class="ctry-label">رقم واتساب الزبون</span>
+    <div class="ctry-row" dir="ltr"><button type="button" class="ctry-btn" id="ctryBtn" aria-expanded="false"></button><input name="phone" type="tel" inputmode="tel" maxlength="30" autocomplete="off" dir="ltr" placeholder="رقم الزبون" aria-label="رقم واتساب الزبون"></div>
+    <div class="ctry-box" id="ctryBox" hidden><input id="ctrySearch" type="search" placeholder="ابحث عن دولة أو رمز…" aria-label="بحث عن دولة" autocomplete="off"><div class="ctry-list" id="ctryList"></div></div></div>
+  <label>عنوان الزبون<input name="address" maxlength="160" autocomplete="off" placeholder="المحافظة، المنطقة"></label>
   <label>السعر<input name="price" maxlength="40" autocomplete="off"></label>
   <p class="hint">هذي البيانات تنحفظ بقائمة خاصة بيك. بعد الحفظ تطلع لك رسالة الضمان حتى ترسلها للزبون.</p>
   <p class="msg" id="saleMsg" role="status"></p>
@@ -378,14 +381,32 @@ async function writeSales(change,message){const put=async()=>{const next=change(
     const res=await api(`/repos/${privRepo()}/contents/sales.json`,{method:"PUT",body:JSON.stringify({message,content:b64(JSON.stringify(next,null,1)),...(salesSha?{sha:salesSha}:{})})});
     salesSha=res.content.sha;Admin.sales=next;syncSales()};
   try{await put()}catch(e){if(e.status!==409)throw e;await loadSales();await put()}}
+// Country codes for the customer's WhatsApp number. Names come from the phone's own language data, so the list stays small.
+const DIALS="AC247 AD376 AE971 AF93 AG1 AI1 AL355 AM374 AO244 AR54 AS1 AT43 AU61 AW297 AX358 AZ994 BA387 BB1 BD880 BE32 BF226 BG359 BH973 BI257 BJ229 BL590 BM1 BN673 BO591 BQ599 BR55 BS1 BT975 BW267 BY375 BZ501 CA1 CC61 CD243 CF236 CG242 CH41 CI225 CK682 CL56 CM237 CN86 CO57 CR506 CU53 CV238 CW599 CX61 CY357 CZ420 DE49 DJ253 DK45 DM1 DO1 DZ213 EC593 EE372 EG20 EH212 ER291 ES34 ET251 FI358 FJ679 FK500 FM691 FO298 FR33 GA241 GB44 GD1 GE995 GF594 GG44 GH233 GI350 GL299 GM220 GN224 GP590 GQ240 GR30 GT502 GU1 GW245 GY592 HK852 HN504 HR385 HT509 HU36 ID62 IE353 IL972 IM44 IN91 IO246 IQ964 IR98 IS354 IT39 JE44 JM1 JO962 JP81 KE254 KG996 KH855 KI686 KM269 KN1 KP850 KR82 KW965 KY1 KZ7 LA856 LB961 LC1 LI423 LK94 LR231 LS266 LT370 LU352 LV371 LY218 MA212 MC377 MD373 ME382 MF590 MG261 MH692 MK389 ML223 MM95 MN976 MO853 MP1 MQ596 MR222 MS1 MT356 MU230 MV960 MW265 MX52 MY60 MZ258 NA264 NC687 NE227 NF672 NG234 NI505 NL31 NO47 NP977 NR674 NU683 NZ64 OM968 PA507 PE51 PF689 PG675 PH63 PK92 PL48 PM508 PR1 PS970 PT351 PW680 PY595 QA974 RE262 RO40 RS381 RU7 RW250 SA966 SB677 SC248 SD249 SE46 SG65 SH290 SI386 SJ47 SK421 SL232 SM378 SN221 SO252 SR597 SS211 ST239 SV503 SX1 SY963 SZ268 TA290 TC1 TD235 TG228 TH66 TJ992 TK690 TL670 TM993 TN216 TO676 TR90 TT1 TV688 TW886 TZ255 UA380 UG256 US1 UY598 UZ998 VA39 VC1 VE58 VG1 VI1 VN84 VU678 WF681 WS685 XK383 YE967 YT262 ZA27 ZM260 ZW263";
+const GULF=["SA","AE","KW","QA","BH","OM"],ARAB=["JO","LB","SY","PS","EG","YE","SD","LY","TN","DZ","MA","MR","SO","DJ","KM"];
+let countries=null,saleCountry=null;
+function countryList(){if(countries)return countries;let ar=null,en=null;try{ar=new Intl.DisplayNames(["ar"],{type:"region"});en=new Intl.DisplayNames(["en"],{type:"region"})}catch(x){}
+  const all=DIALS.split(" ").map(x=>{const iso=x.slice(0,2),dial=x.slice(2);let a=iso,e=iso;try{a=ar?ar.of(iso):iso;e=en?en.of(iso):iso}catch(y){}return {iso,dial,ar:a,en:e}}),by=new Map(all.map(c=>[c.iso,c])),pick=l=>l.map(i=>by.get(i)).filter(Boolean);
+  return countries={all,by,iraq:by.get("IQ"),gulf:pick(GULF),arab:pick(ARAB),rest:all.filter(c=>c.iso!=="IQ"&&!GULF.includes(c.iso)&&!ARAB.includes(c.iso)).sort((a,b)=>a.ar.localeCompare(b.ar,"ar"))}}
+const flagOf=iso=>iso.replace(/./g,c=>String.fromCodePoint(127397+c.charCodeAt(0)));
+const searchForm=s=>s.replace(/[ً-ْ]/g,"").replace(/[أإآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").toLowerCase();
+function countryHits(text){const q=searchForm(latinDigits(text.trim()).replace(/^(\+|00)/,""));return q?countryList().all.filter(c=>searchForm(c.ar).includes(q)||c.en.toLowerCase().includes(q)||c.iso.toLowerCase()===q||c.dial.startsWith(q)):null}
+function renderCountries(){const l=countryList(),row=c=>`<button type="button" class="ctry-item" data-iso="${c.iso}"><span>${flagOf(c.iso)} ${esc(c.ar)}</span><b dir="ltr">+${c.dial}</b></button>`,head=t=>`<p class="ctry-head">${t}</p>`,hits=countryHits($("ctrySearch").value);
+  $("ctryList").innerHTML=hits?(hits.map(row).join("")||head("ماكو دولة بهذا الاسم.")):row(l.iraq)+head("دول الخليج")+l.gulf.map(row).join("")+head("الدول العربية")+l.arab.map(row).join("")+head("كل الدول")+l.rest.map(row).join("")}
+function showCountries(on){$("ctryBox").hidden=!on;$("ctryBtn").setAttribute("aria-expanded",String(on));if(on){$("ctrySearch").value="";renderCountries();$("ctryList").scrollTop=0;$("ctrySearch").focus()}}
+function setCountry(c){saleCountry=c;$("ctryBtn").textContent=flagOf(c.iso)+" +"+c.dial;$("ctryBtn").setAttribute("aria-label","رمز الدولة: "+c.ar+" +"+c.dial);showCountries(false)}
+function wireCountries(){$("ctryBtn").onclick=()=>showCountries($("ctryBox").hidden);$("ctrySearch").addEventListener("input",renderCountries);
+  $("ctrySearch").addEventListener("keydown",e=>{if(e.key!=="Enter")return;e.preventDefault();const h=countryHits($("ctrySearch").value);if(h&&h[0]){setCountry(h[0]);$("saleF").elements.phone.focus()}});
+  $("ctryList").addEventListener("click",e=>{const b=e.target.closest("[data-iso]");if(!b)return;setCountry(countryList().by.get(b.dataset.iso));$("saleF").elements.phone.focus()})}
 function openSale(r,kind,doc){if(!r)return;const el=$("saleF").elements,old=doc&&Admin.sales.find(s=>s.id===doc);
-  Admin.sale={r,kind,doc:doc||null};$("saleF").reset();
+  Admin.sale={r,kind,doc:doc||null};$("saleF").reset();setCountry(old&&old.iso&&countryList().by.get(old.iso)||countryList().iraq);el.address.value=old&&old.address||"";
   $("saleT").textContent=(kind==="sold"?"تم الشراء: ":"حجز: ")+"رقم "+ringNo(r)+" · "+r.title;
   el.name.value=old&&old.name||"";el.phone.value=old&&old.phone||"";el.price.value=old&&old.price||priceText(r);
   $("saleSave").textContent=kind==="sold"?"تم الشراء":"سجّل الحجز";$("saleSave").disabled=false;$("saleMsg").textContent="";
   $("sale").showModal()}
 // A local Iraqi number (07...) becomes the international form a WhatsApp link needs.
-const waNumber=p=>{let d=latinDigits(String(p||"")).replace(/\D/g,"").replace(/^00/,"");if(d.startsWith("0"))d="964"+d.slice(1);return d.length>=10?d:""};
+// A number typed with + or 00 is used as it is. Otherwise the chosen country's code goes in front, replacing a local leading 0.
+const waNumber=(p,dial)=>{const raw=latinDigits(String(p||"")).trim();let d=raw.replace(/\D/g,"");if(!d)return "";if(/^(\+|00)/.test(raw))d=d.replace(/^00/,"");else{const c=dial||"964";if(!(d.startsWith(c)&&d.length>=c.length+7))d=c+d.replace(/^0/,"")}return d.length>=8?d:""};
 const dateText=at=>new Date(at).toLocaleDateString("en-GB");
 const guarLines=s=>["خاتم رقم "+s.no+" · "+s.title,s.name&&"الزبون: "+s.name,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"خواتم العقيق"].filter(Boolean);
 const guarText=s=>[`السلام عليكم${s.name?" "+s.name:""}،`,"هذا باركود الضمان لخاتمك من خواتم العقيق:","رقم الخاتم: "+s.no,"الاسم: "+s.title,s.price&&"السعر: "+s.price,(s.kind==="sold"?"تاريخ الشراء: ":"تاريخ الحجز: ")+dateText(s.at),"رابط الضمان: "+BASE+"r/"+s.no,"احتفظ بهذي الرسالة."].filter(Boolean).join("\n");
@@ -395,7 +416,7 @@ const loadImg=u=>new Promise(ok=>{if(!u)return ok(null);const i=new Image();i.on
 // A free WhatsApp link fills in the text and the owner presses send. The picture goes through the phone's share list, once the customer's chat is open.
 async function openGuar(s){const box=$("guarBox"),r=byId(s.ringId)||{id:s.no-1,title:s.title};Admin.guar=null;
   try{await loadQr();const c=qrCanvas(r,guarLines(s),await loadImg(salePhoto(s)));Admin.guar={s,canvas:c};
-    const num=waNumber(s.phone);
+    const num=waNumber(s.phone,s.dial);
     box.innerHTML=`<h3>باركود الضمان</h3><img class="guar-card" src="${c.toDataURL("image/png")}" alt="باركود الضمان للخاتم رقم ${esc(s.no)}">
     ${num?`<a class="pill-wa" href="https://wa.me/${num}?text=${encodeURIComponent(guarText(s))}" target="_blank" rel="noopener">1. افتح محادثة الزبون وأرسل الرسالة</a>`:`<p style="margin:0;color:var(--carnelian)">رقم الزبون ما مكتوب صح. عدّله من قائمة المبيعات.</p>`}
     <button type="button" class="pill-wa" id="guarShare">2. أرسل صورة الباركود</button>
@@ -409,10 +430,10 @@ async function shareGuar(){const G=Admin.guar,note=$("guarNote");if(!G)return;co
   if(!navigator.canShare||!navigator.canShare({files})){note.textContent=hold;return}
   try{await navigator.share({files})}catch(x){if(!x||x.name!=="AbortError")note.textContent=hold}}
 async function submitSale(e){e.preventDefault();const S=Admin.sale,el=$("saleF").elements,btn=$("saleSave"),say=t=>{$("saleMsg").textContent=t};
-  const name=el.name.value.trim(),phone=el.phone.value.trim();if(!waNumber(phone)){say("اكتب رقم واتساب الزبون كامل.");return}
+  const name=el.name.value.trim(),phone=el.phone.value.trim(),address=el.address.value.trim();if(!waNumber(phone,saleCountry.dial)){say("اكتب رقم واتساب الزبون كامل.");return}
   btn.disabled=true;say("دا أحفظ…");
   const old=S.doc&&Admin.sales.find(s=>s.id===S.doc),id=S.doc||"s"+Date.now();
-  const body={id,ringId:S.r.id,no:ringNo(S.r),title:S.r.title,photo:photoUrl(S.r),kind:S.kind,name,phone,price:el.price.value.trim(),at:old&&old.kind===S.kind?old.at:Date.now()};
+  const body={id,ringId:S.r.id,no:ringNo(S.r),title:S.r.title,photo:photoUrl(S.r),kind:S.kind,name,phone,dial:saleCountry.dial,iso:saleCountry.iso,address,price:el.price.value.trim(),at:old&&old.kind===S.kind?old.at:Date.now()};
   try{await writeSales(list=>[...list.filter(s=>s.id!==id),body],(S.kind==="sold"?"بيع":"حجز")+" خاتم "+body.no);S.doc=id}
   catch(x){say(adminErr(x));btn.disabled=false;return}
   if(S.kind==="sold"&&!S.r.sold){const snapshot=JSON.stringify(catalogRows());S.r.sold=true;S.r.soldAt=Date.now();say("انحفظ البيع، دا أعلّم الخاتم «تم البيع»…");
@@ -422,7 +443,7 @@ const kindName=k=>k==="sold"?"تم البيع":"حجز";
 function renderLedger(){if(!$("ledger").open)return;const it=[...Admin.sales].sort((a,b)=>b.at-a.at);
   $("ledgerBox").innerHTML=`<h3>المبيعات والحجوزات (${it.length})</h3><p class="led-note">هذي القائمة تشوفها إنت بس.</p>`+(it.length?it.map(s=>{const r=byId(s.ringId),can=s.kind!=="sold"&&r&&!r.sold;
     return `<div class="led">${salePhoto(s)?`<img class="led-photo" src="${esc(salePhoto(s))}" alt="${esc(s.title)}" loading="lazy">`:""}<div class="led-top"><b>رقم ${esc(s.no)} · ${esc(s.title)}</b><span class="led-kind" data-k="${s.kind==="sold"?"sold":"res"}">${kindName(s.kind)}</span></div>
-    <dl><dt>الزبون</dt><dd>${esc(s.name||"غير مكتوب")}</dd><dt>الرقم</dt><dd dir="ltr" style="text-align:right">${esc(s.phone||"غير مكتوب")}</dd><dt>السعر</dt><dd>${esc(s.price||"غير مكتوب")}</dd><dt>التاريخ</dt><dd dir="ltr" style="text-align:right">${new Date(s.at).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"})}</dd></dl>
+    <dl><dt>الزبون</dt><dd>${esc(s.name||"غير مكتوب")}</dd><dt>الرقم</dt><dd dir="ltr" style="text-align:right">${s.dial?"+"+esc(s.dial)+" ":""}${esc(s.phone||"غير مكتوب")}</dd>${s.address?`<dt>العنوان</dt><dd>${esc(s.address)}</dd>`:""}<dt>السعر</dt><dd>${esc(s.price||"غير مكتوب")}</dd><dt>التاريخ</dt><dd dir="ltr" style="text-align:right">${new Date(s.at).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"})}</dd></dl>
     <div class="adm-row"><button type="button" class="adm-btn main" data-guar="${esc(s.id)}">أرسل الضمان</button>${can?`<button type="button" class="adm-btn" data-sale="${s.ringId}" data-kind="sold" data-doc="${esc(s.id)}">تم الشراء</button>`:""}${r?`<button type="button" class="adm-btn" data-sale="${s.ringId}" data-kind="${esc(s.kind)}" data-doc="${esc(s.id)}">تعديل</button>`:""}<button type="button" class="adm-btn danger" data-del="${esc(s.id)}">حذف</button></div></div>`}).join(""):`<p style="margin:0;color:var(--dim)">بعد ما مسجل بيع أو حجز.</p>`)+`<button type="button" class="adm-btn" id="admOut">خروج من الآدمن بهذا الموبايل</button>`;
   $("admOut").onclick=()=>{store.del(KEY_TOKEN);store.del(KEY_OWNER);location.href=location.pathname}}
 // Sales numbers for the owner. Prices were typed as text, so they are read back here: thousands of dinars, or dollars kept apart.
@@ -432,7 +453,7 @@ const moneyText=m=>[m.iqd?m.iqd.toLocaleString("en-US")+" ألف":"",m.usd?m.usd
 // The Iraqi working week starts on Saturday.
 const weekStart=()=>{const x=new Date();x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+1)%7));return +x};
 const monthStart=()=>{const x=new Date();x.setHours(0,0,0,0);x.setDate(1);return +x};
-function topBuyers(sold){const map=new Map();sold.forEach(s=>{const key=waNumber(s.phone)||s.phone||"";if(!key)return;const b=map.get(key)||{key,num:waNumber(s.phone),phone:s.phone,name:"",list:[]};if(s.name)b.name=s.name;b.list.push(s);map.set(key,b)});
+function topBuyers(sold){const map=new Map();sold.forEach(s=>{const key=waNumber(s.phone,s.dial)||s.phone||"";if(!key)return;const b=map.get(key)||{key,num:waNumber(s.phone,s.dial),phone:s.phone,name:"",list:[]};if(s.name)b.name=s.name;b.list.push(s);map.set(key,b)});
   return [...map.values()].sort((a,b)=>b.list.length-a.list.length||addMoney(b.list).iqd-addMoney(a.list).iqd).slice(0,5)}
 function renderStats(){if(!$("salesPanel").open)return;
   const sold=Admin.sales.filter(s=>s.kind==="sold"),week=sold.filter(s=>s.at>=weekStart()),month=sold.filter(s=>s.at>=monthStart());
@@ -491,7 +512,7 @@ async function enterAdmin(){
   try{await loadSales();Admin.ledger=true;$("admLedger").hidden=false;$("admLedger").onclick=()=>{$("ledger").showModal();renderLedger()};
     $("admMenu").hidden=false;$("statsX").onclick=()=>$("salesPanel").close();
     $("salesPanel").addEventListener("click",e=>{if(e.target===$("salesPanel"))$("salesPanel").close()});
-    $("rateF").addEventListener("submit",submitRate);
+    wireCountries();$("rateF").addEventListener("submit",submitRate);
     $("admMenu").onclick=()=>{$("rateIn").value=SETTINGS.rate;$("rateMsg").textContent="";$("salesPanel").showModal();renderStats();loadSales().catch(()=>{})}}
   catch(e){toast("ما كدرت أقرا قائمة المبيعات: "+adminErr(e))}
   refreshAdmin();
