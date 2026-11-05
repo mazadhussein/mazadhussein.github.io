@@ -150,8 +150,11 @@ const ringLink=r=>BASE+"r/"+ringNo(r);
 const priceText=ringPriceText;
 // Prices are set in one currency and shown in both. Sale records keep priceText alone, so totals aren't confused by the second figure.
 const priceBoth=r=>r.price!=null?`${r.price} ألف (${toUsd(r.price)} دولار)`:r.label?`${r.label} (${toIqd(parseFloat(r.label))} ألف)`:priceText(r);
-const SHIP_SHORT="التوصيل داخل العراق 5,000 دينار";
-const SHIP_FULL="داخل العراق 5,000 دينار، وخارج العراق حسب الدولة";
+// Delivery is charged once per order, in thousands of dinars for the totals.
+const SHIP_K=5;
+const SHIP_SHORT="التوصيل داخل العراق 5,000 دينار للطلب";
+const SHIP_FULL="داخل العراق 5,000 دينار على الطلب كله، وخارج العراق حسب الدولة";
+const shipTotal=sum=>`مع التوصيل داخل العراق: ${sum+SHIP_K} ألف (${toUsd(sum+SHIP_K)} دولار)`;
 function ringText(r,short,noShip){
   const rows=[["رقم الخاتم",ringNo(r)],["الاسم",r.title],["السعر",priceBoth(r)],["القياس",r.size]];
   if(!short)rows.splice(2,0,["التفنيد",r.q],["النقش",r.nq],["الصياغة",r.sg],["الفئة",tierLabel(r)],["الحجم",gradeName(r)]);
@@ -224,11 +227,11 @@ function syncCart(){
   const items=cart.map(byId).filter(Boolean);
   if(!items.length){$("cartBox").innerHTML=`<h3>السلة</h3><p style="color:var(--dim);margin:0">السلة فارغة. اختار الخواتم اللي تعجبك واضغط «أضف للسلة».</p>`;return}
   const sum=items.reduce((a,r)=>a+(r.price||0),0),unpriced=items.filter(r=>r.price==null).length;
-  const order=short=>`السلام عليكم، أريد أحجز هذي الخواتم:\n\n${items.map(r=>ringText(r,short,true)).join("\n\n")}\n\nالمجموع: ${sum} ألف (${toUsd(sum)} دولار)${unpriced?" + قطع سعرها عند الطلب":""}\nالتوصيل: ${SHIP_FULL}\n\nرابط الطلب كامل: ${BASE}#order=${items.map(ringNo).join(",")}`;
+  const order=short=>`السلام عليكم، أريد أحجز هذي الخواتم:\n\n${items.map(r=>ringText(r,short,true)).join("\n\n")}\n\nالمجموع: ${sum} ألف (${toUsd(sum)} دولار)${unpriced?" + قطع سعرها عند الطلب":""}\nالتوصيل: ${SHIP_FULL}\n${shipTotal(sum)}\n\nرابط الطلب كامل: ${BASE}#order=${items.map(ringNo).join(",")}`;
   // Very long links can fail to open WhatsApp, so a big order drops to the short form of each ring.
   const msg=encodeURIComponent(order(false)).length>6000?order(true):order(false);
   $("cartBox").innerHTML=`<h3>السلة (${items.length})</h3>`+items.map(r=>`<div class="line"><div class="th">${photo(r)}</div><div>${esc(r.title)}</div>${priceHTML(r)}<button type="button" class="rm" data-rm="${r.id}" aria-label="حذف">×</button></div>`).join("")+
-  `<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div><p class="ship-note">المجموع بدون التوصيل: ${SHIP_FULL}.</p>${unpriced?`<p style="margin:0;color:var(--dim);font-size:13px">المجموع بدون ${unpriced} قطعة سعرها عند الطلب.</p>`:""}
+  `<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div><p class="ship-note"><b>${shipTotal(sum)}</b><br>التوصيل: ${SHIP_FULL}.</p>${unpriced?`<p style="margin:0;color:var(--dim);font-size:13px">المجموع بدون ${unpriced} قطعة سعرها عند الطلب.</p>`:""}
   <a class="pill-wa" style="justify-content:center" href="https://wa.me/9647757685741?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">أرسل الطلب على الواتساب</a>`;
 }
 $("cartBtn").onclick=()=>{syncCart();$("cart").showModal()};
@@ -265,7 +268,7 @@ function openFromLink(){const o=location.hash.match(/order=([\d,]+)/);if(o){if(!
 let orderLink="";
 function openOrder(nos){orderLink=nos;const rings=[...new Set(nos.split(",").map(n=>byId(+n-1)))].filter(Boolean),open=rings.filter(r=>!r.sold),sum=open.reduce((a,r)=>a+(r.price||0),0);
   $("orderBox").innerHTML=`<h3>الطلب (${rings.length})</h3>`+(rings.length?rings.map(r=>`<div class="line" data-open="${r.id}"><div class="th">${photo(r)}</div><div>${esc(r.title)}<small class="line-no">رقم ${ringNo(r)}${r.sold?" · تم البيع":""}</small></div>${priceHTML(r)}<span></span></div>`).join(""):`<p style="margin:0;color:var(--dim)">ما لكيت خواتم بهذا الطلب.</p>`)+
-  (open.length?`<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div><p class="ship-note">المجموع بدون التوصيل: ${SHIP_FULL}.</p>`:"")+
+  (open.length?`<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div><p class="ship-note"><b>${shipTotal(sum)}</b><br>التوصيل: ${SHIP_FULL}.</p>`:"")+
   (Admin.ledger&&open.length?`<div class="adm-sale-all"><button type="button" class="adm-btn main" data-order="sold">تم شراء الكل (${open.length})</button><button type="button" class="adm-btn" data-order="reserved">حجز الكل</button></div>`:"");
   if(!$("order").open)$("order").showModal()}
 $("orderX").onclick=()=>$("order").close();
