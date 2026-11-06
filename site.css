@@ -119,7 +119,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .sheet-badges span.new{background:var(--gold);border-color:var(--gold);color:#1d0f09}
 .card .badge.sale{background:var(--carnelian);border-color:var(--carnelian);color:#fff}
 .sheet-badges span.sale{background:var(--carnelian);border-color:var(--carnelian);color:#fff}
-.price .was{display:block;font:400 12px/1.3 var(--body);color:var(--dim);text-decoration:line-through;text-align:start}
+/* Arabic labels use the plain font so they read at a glance. VIP alone keeps the decorative one. */
+.card .badge.new,.card .badge.sale,.card .badge.size{font-family:var(--body);font-weight:700;letter-spacing:0;line-height:1.35}
+.sheet-badges span:not([style]){font-family:var(--body);line-height:1.35}
+#t-new .thead .big{font-family:var(--body)}
+.price .was{display:block;margin-bottom:2px;font:600 17px/1.3 var(--body);color:var(--ink);text-decoration:line-through;text-decoration-color:var(--carnelian);text-decoration-thickness:1.5px;text-align:start}
 .sheet-badges{display:flex;flex-wrap:wrap;gap:6px}
 .sheet-badges span{padding:4px 10px;border:1px solid var(--ink);border-radius:999px;color:var(--ink);font:700 12px var(--kufi)}
 .card .badge{font:700 12px var(--kufi);letter-spacing:.06em;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--vault) 70%,transparent);border:1px solid var(--metal);color:var(--metal);backdrop-filter:blur(6px)}
@@ -276,7 +280,7 @@ body.is-admin{padding-bottom:76px}
   .ask{font-size:13px}
   .add{width:100%;min-height:36px}
   .card .badges{top:8px;inset-inline-start:8px;gap:4px}
-  .card .badge{font-size:10.5px;padding:3px 7px}
+  .card .badge{font-size:11.5px;padding:2px 7px}
   .card .play{bottom:28px;inset-inline-end:8px;padding:3px 7px;font-size:10px}
   .sold-rib{padding:6px 8px;font-size:14px}
   .adm-row{flex-wrap:wrap;gap:6px}
