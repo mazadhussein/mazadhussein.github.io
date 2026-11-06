@@ -46,8 +46,6 @@ const MARKUP=String.raw`<header class="top"><div class="g">
 
 <main id="list"></main>
 
-<a class="wa-float" href="https://wa.me/9647757685741" target="_blank" rel="noopener" aria-label="راسلنا على الواتساب"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2Z"/></svg></a>
-
 <dialog id="cart"><button class="x" type="button" id="cartX" aria-label="إغلاق">×</button><div class="cart-box" id="cartBox"></div></dialog>
 
 <dialog id="dlg"><button class="x" type="button" id="x" aria-label="إغلاق">×</button><div id="sheet"></div></dialog>
@@ -326,6 +324,7 @@ async function drawQr(r){
 }
 let openId=null;
 const saleBar=r=>Admin.ledger&&!r.sold?`<div class="adm-sale"><b>هل تم الشراء؟</b><button type="button" class="adm-btn main" data-sale="${r.id}" data-kind="sold">تم الشراء</button><button type="button" class="adm-btn" data-sale="${r.id}" data-kind="reserved">حجز</button></div>`:"";
+const WA_ICON=`<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2Z"/></svg>`;
 function openRing(r){const t=T(r.t);openId=r.id;
   $("sheet").innerHTML=`${saleBar(r)}<div class="sheet" style="--metal:${t.metal}">${gallery(r)}<div class="tx">
    ${ringLabels(r).length?`<div class="sheet-badges">${isNew(r)?`<span class="new">جديد</span>`:""}${tierLabel(r)?`<span style="border-color:${t.metal};color:${t.metal}">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span>${gradeName(r)}</span>`:""}</div>`:""}
@@ -333,8 +332,8 @@ function openRing(r){const t=T(r.t);openId=r.id;
    <div class="specs"><dl>${[["رقم الخاتم",ringNo(r)],["النقش",r.nq],["الصياغة",r.sg],["الحجم",gradeName(r)],["القياس",r.size],["الحجر","عقيق يماني خام"],["التوصيل",r.sold?"":SHIP_FULL]].filter(x=>x[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
    <figure class="qr" id="qrWrap"><img id="qrImg" data-ring="${ringNo(r)}" alt="باركود الخاتم رقم ${ringNo(r)}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="><figcaption>باركود الخاتم</figcaption></figure></div>
    ${r.sold?`<p class="sold-tag">تم البيع</p>`:`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">${priceHTML(r)}
-   <span style="display:flex;gap:8px;flex-wrap:wrap">${addBtn(r)}<a class="pill-wa" href="${wa(r)}" target="_blank" rel="noopener">احجز هذا الخاتم</a></span></div>`}
-   <p style="margin:0;color:var(--dim);font-size:13px">أو راسلنا على <span class="num" style="font-size:15px">0775 768 5741</span></p></div></div>`;
+   <span style="display:flex;gap:8px;flex-wrap:wrap">${addBtn(r)}</span></div>`}
+   <p style="margin:0;color:var(--dim);font-size:13px">أو راسلنا على <span class="num" style="font-size:15px">0775 768 5741</span></p></div></div>${r.sold?"":`<a class="wa-float" href="${wa(r)}" target="_blank" rel="noopener">${WA_ICON}حجز عبر واتساب</a>`}`;
   if(!$("dlg").open)$("dlg").showModal();wireGallery();drawQr(r)}
 $("x").onclick=()=>$("dlg").close();
 $("dlg").addEventListener("close",()=>{if($("dlg").open)return;openId=null;const v=$("vid");if(v)v.pause();$("sheet").innerHTML=""});

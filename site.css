@@ -192,10 +192,9 @@ dialog::backdrop{background:rgba(8,3,2,.78);backdrop-filter:blur(4px)}
 .foot .big{font-family:var(--display);font-size:34px;line-height:1.2;color:var(--ink);margin-bottom:8px}
 @media (max-width:760px){.foot .g{grid-template-columns:1fr}}
 /* admin mode: shown only to people who can edit this page */
-/* The WhatsApp button stays in the same corner of the screen while the page moves under it. */
-.wa-float{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));inset-inline-start:16px;z-index:35;display:grid;place-items:center;width:58px;height:58px;border-radius:50%;background:var(--wa);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.5);text-decoration:none}
-.wa-float svg{width:34px;height:34px}
-body.is-admin .wa-float{bottom:calc(124px + env(safe-area-inset-bottom,0px))}
+/* Inside a ring's details, the booking button stays on screen while the details scroll under it. */
+.wa-float{position:sticky;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:center;justify-content:center;gap:8px;width:fit-content;margin:6px auto 14px;padding:11px 22px;border-radius:999px;background:var(--wa);color:#04170c;font:700 16px var(--body);white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55);text-decoration:none}
+.wa-float svg{width:24px;height:24px;flex:none}
 body.is-admin{padding-bottom:112px}
 .adm-visits{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:2px 14px;margin:0;color:var(--dim);font:400 13px var(--body)}
 .adm-visits[hidden]{display:none}
