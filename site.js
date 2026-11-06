@@ -39,12 +39,14 @@ const MARKUP=String.raw`<header class="top"><div class="g">
         <input id="hi" type="range" min="100" max="650" step="5" value="650" aria-label="السعر إلى"></div>
       <div class="prange"><span>من <b id="loV">100</b></span><span>إلى <b id="hiV">650</b> ألف</span></div>
     </div>
-    <div><label class="h" for="q">بحث</label><input id="q" type="search" placeholder="كرزي، الكوثر، رقم الخاتم…"></div>
+    <div><label class="h" for="q">ابحث عن خاتم</label><input id="q" type="search" placeholder="الاسم، الحجر، النقش، أو رقم الخاتم…"></div>
   </div>
   <p class="count" id="count"></p>
 </div></section>
 
 <main id="list"></main>
+
+<a class="wa-float" href="https://wa.me/9647757685741" target="_blank" rel="noopener" aria-label="راسلنا على الواتساب"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2Z"/></svg></a>
 
 <dialog id="cart"><button class="x" type="button" id="cartX" aria-label="إغلاق">×</button><div class="cart-box" id="cartBox"></div></dialog>
 
@@ -63,10 +65,10 @@ const MARKUP=String.raw`<header class="top"><div class="g">
   <label>التفنيد<textarea name="q" rows="3"></textarea></label>
   <label>النقش أو الإمضاء<input name="nq"></label>
   <label>الصياغة<input name="sg"></label>
-  <div class="two"><label>القياس<input name="size" type="number" inputmode="decimal" step="0.5" min="1"></label><label>السعر بالألف<input name="price" type="number" inputmode="numeric" min="0"></label></div>
-  <label>السعر قبل التخفيض، خليه فارغ إذا ماكو تخفيض<input name="was" type="number" inputmode="numeric" min="0"></label>
-  <label>مدة التخفيض بالأيام، خليها فارغة حتى يبقى الوقت مثل ما هو<input name="saleDays" type="number" inputmode="numeric" min="1"></label>
-  <label>أو السعر بالدولار<input name="usd" type="number" inputmode="numeric" min="0"></label>
+  <div class="two"><label>القياس<input name="size" type="text" inputmode="decimal" autocomplete="off"></label><label>السعر الأصلي بالألف<input name="price" type="text" inputmode="numeric" autocomplete="off"></label></div>
+  <label>سعر التخفيض بالألف، خليه فارغ إذا ماكو تخفيض<input name="sale" type="text" inputmode="numeric" autocomplete="off"></label>
+  <label>مدة التخفيض بالأيام، اختيارية<input name="saleDays" type="text" inputmode="numeric" autocomplete="off"></label>
+  <label>أو السعر بالدولار<input name="usd" type="text" inputmode="numeric" autocomplete="off"></label>
   <div class="two"><label>الحجم<select name="grade"><option value="">بعد ما محدد</option><option value="nawa">نواعم</option><option value="wasat">وسط</option><option value="khashin">خشن</option></select></label><label>سوبر VIP<select name="sup"><option value="">لا، حسب السعر</option><option value="1">إي، سوبر VIP</option></select></label></div>
   <p class="hint">300 ألف وفوق تطلع عليه علامة VIP وحدها. إذا السعر فارغ يطلع «السعر عند الطلب».</p>
   <label>صورة الخاتم<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
@@ -258,18 +260,31 @@ function card(r){const t=T(r.t);return `<article class="card${r.sold?" is-sold":
   <div class="in"><h4>${esc(r.title)}</h4><p class="by">${esc(["رقم "+ringNo(r),r.nq,r.sg].filter(Boolean).join(" · "))}</p>
   <div class="row">${priceHTML(r)}${r.sold?"":addBtn(r)}</div>${r.sold?"":`<p class="ship">${SHIP_SHORT}</p>`}${adminRow(r)}</div></article>`}
 
+// Search: whole words and the starts of words come first, so «در» finds «در نجفي» and not every «مدرسة». Spelling marks, hamzas and one wrong letter don't matter.
+const SEARCH_SKIP=new Set(["خاتم","خواتم","الخاتم","الخواتم","رقم","قياس","القياس","سعر","السعر","الف","ألف","على","عن","من","في","الى","إلى"]);
+const searchWords=s=>latinDigits(String(s||"")).replace(/[\p{M}ـ]/gu,"").split(/[^\p{L}\p{N}]+/u).filter(w=>w&&!SEARCH_SKIP.has(w)).map(w=>searchForm(w).replace(/ؤ/g,"و").replace(/ئ/g,"ي"));
+const bareWord=w=>{const b=w.replace(/^[وفبل]?ال/,"");return b.length>=2?b:w};
+function oneLetterOff(a,b){if(Math.abs(a.length-b.length)>1)return false;let i=0,j=0,off=0;while(i<a.length&&j<b.length){if(a[i]===b[j]){i++;j++;continue}if(++off>1)return false;if(a.length>b.length)i++;else if(b.length>a.length)j++;else{i++;j++}}return off+(a.length-i)+(b.length-j)<=1}
+function wordScore(t,w){const bt=bareWord(t),bw=bareWord(w);if(w===t||bw===bt)return 10;if(/^\d+$/.test(t))return 0;if(t.length>=2&&(w.startsWith(t)||bw.startsWith(bt)))return 6;if(t.length>=3&&w.includes(t))return 3;return bt.length>=4&&oneLetterOff(bw,bt)?2:0}
+function termScore(r,t,fields){let best=0;if(/^\d+$/.test(t)){const n=+t;if(ringNo(r)===n)return 1000;if(r.size===n||r.price===n||r.was===n)best=40}
+  // Numbers inside an inscription are verse numbers, so typing a number never lands on them.
+  fields.forEach(f=>{if(f.weight===5&&/^\d+$/.test(t))return;f.words.forEach(w=>{best=Math.max(best,wordScore(t,w)*f.weight)});if(t.length>=4&&f.words.join("").includes(t))best=Math.max(best,f.weight)});return best}
+function searchRings(terms){const scored=R.filter(onShow).map(r=>{const fields=[[8,r.title],[5,r.q],[4,r.nq],[4,r.sg],[3,[gradeName(r),(GRADES.find(g=>g.id===r.grade)||{}).name,tierLabel(r),isNew(r)&&"جديد بضاعة",onSale(r)&&"تخفيض خصم"].filter(Boolean).join(" ")],[1,"عقيق يماني خام"]].map(([weight,text])=>({weight,words:searchWords(text)})),each=terms.map(t=>termScore(r,t,fields));return {r,sum:each.reduce((a,b)=>a+b,0),all:each.every(s=>s>0)}}).filter(x=>x.sum>0);
+  // Rings holding every word come first. With none, rings holding any of them still show.
+  const best=scored.some(x=>x.all)?scored.filter(x=>x.all):scored;return best.sort((a,b)=>b.sum-a.sum||rank(b.r)-rank(a.r)).map(x=>x.r)}
 function render(){
-  const [lo,hi]=slider(),q=$("q").value.trim(),full=lo===100&&hi===650;
-  const ok=r=>(tier==="all"||r.t===tier)&&(full||(r.price!=null&&r.price>=lo&&r.price<=hi))&&(grade==="all"||r.grade===grade)&&(!q||String(ringNo(r))===latinDigits(q)||(r.title+(r.q||"")+(r.nq||"")+(r.sg||"")).includes(q));
+  const [lo,hi]=slider(),raw=$("q").value.trim(),terms=searchWords(raw),full=lo===100&&hi===650;
+  const ok=r=>(tier==="all"||r.t===tier)&&(full||(r.price!=null&&r.price>=lo&&r.price<=hi))&&(grade==="all"||r.grade===grade);
   let n=0;
   const section=(t,it)=>{n+=it.length;if(!it.length)return"";
     return `<section class="tier" id="t-${t.id}" style="--metal:${t.metal}"><div class="g">
       <div class="thead"><span class="big">${t.big}</span><h3>${t.name}</h3><p>${t.note} · ${it.length} قطعة</p></div>
       <div class="rail-x">${it.slice(0,more[t.id]||PAGE_STEP).map(card).join("")}</div>${it.length>(more[t.id]||PAGE_STEP)?`<button type="button" class="more-btn" data-more="${t.id}">عرض المزيد (باقي ${it.length-(more[t.id]||PAGE_STEP)})</button>`:""}</div></section>`};
   const fresh=R.filter(r=>isNew(r)&&ok(r)).sort((a,b)=>(b.newAt-a.newAt)||(rank(b)-rank(a)));
-  const html=section({id:"new",name:"بضاعة جديدة",big:"جديد",note:"نزلت هذا الأسبوع",metal:"var(--gold)"},fresh)+TIERS.map(t=>section(t,R.filter(r=>onShow(r)&&!isNew(r)&&r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a)))).join("");
+  // A search looks through every ring, whatever size or price is chosen above it, and shows one list with the closest first.
+  const html=terms.length?section({id:"search",name:"ابحث عن خاتم",big:"",note:`نتائج «${esc(raw)}»`,metal:"var(--gold)"},searchRings(terms)):section({id:"new",name:"بضاعة جديدة",big:"جديد",note:"نزلت هذا الأسبوع",metal:"var(--gold)"},fresh)+TIERS.map(t=>section(t,R.filter(r=>onShow(r)&&!isNew(r)&&r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a)))).join("");
   const soldOnly=Admin.on&&Admin.showSold;document.body.classList.toggle("sold-only",soldOnly);
-  $("list").innerHTML=soldOnly?soldSection():html||`<div class="g"><div class="empty">ماكو خاتم بهذي المواصفات. وسّع مدى السعر، أو راسلنا على الواتساب ونلكالك اللي تريده.</div></div>`;
+  $("list").innerHTML=soldOnly?soldSection():html||`<div class="g"><div class="empty">${terms.length?`ما لكينا خاتم بـ«${esc(raw)}». جرب كلمة ثانية من اسمه أو نقشه، أو راسلنا على الواتساب ونلكالك اللي تريده.`:"ماكو خاتم بهذي المواصفات. وسّع مدى السعر، أو راسلنا على الواتساب ونلكالك اللي تريده."}</div></div>`;
   $("count").textContent=n+" قطعة مطابقة";
 }
 ["lo","hi","q"].forEach(id=>$(id).addEventListener("input",()=>{more={};render()}));
@@ -374,14 +389,21 @@ function frameOf(file){return new Promise((ok,no)=>{const v=document.createEleme
   v.onloadedmetadata=()=>{v.currentTime=v.duration*.8};
   v.onseeked=()=>{const s=Math.min(1,1000/Math.max(v.videoWidth,v.videoHeight)),c=document.createElement("canvas");c.width=Math.round(v.videoWidth*s);c.height=Math.round(v.videoHeight*s);c.getContext("2d").drawImage(v,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>b?ok(b):no(),"image/jpeg",.82)};
   v.onerror=()=>{URL.revokeObjectURL(url);no()};v.src=url})}
+// Number boxes on some phones refuse Arabic digits, so these boxes take plain text and read both kinds.
+const formNum=v=>{const n=parseFloat(latinDigits(String(v)).replace("٫",".").trim());return n>0?n:null};
 function openForm(r){const f=$("admF"),el=f.elements;f.reset();Admin.editing=r?r.id:null;
   $("admT").textContent=r?"تعديل: "+r.title:"خاتم جديد";
-  el.title.value=r?r.title:"";el.q.value=r&&r.q||"";el.nq.value=r&&r.nq||"";el.sg.value=r&&r.sg||"";el.size.value=r&&r.size||"";el.price.value=r&&r.price!=null?r.price:"";el.was.value=r&&r.was||"";el.usd.value=r&&r.label?parseInt(r.label):"";el.grade.value=r&&r.grade||"";el.sup.value=r&&r.super?"1":"";
+  el.title.value=r?r.title:"";el.q.value=r&&r.q||"";el.nq.value=r&&r.nq||"";el.sg.value=r&&r.sg||"";el.size.value=r&&r.size||"";el.price.value=r&&r.price!=null?r.was||r.price:"";el.sale.value=r&&r.was?r.price:"";el.saleDays.placeholder=r&&r.saleEnd?"باقي "+Math.ceil((r.saleEnd-Date.now())/864e5)+" يوم، اكتب رقم حتى تغيرها":"";el.usd.value=r&&r.label?parseInt(r.label):"";el.grade.value=r&&r.grade||"";el.sup.value=r&&r.super?"1":"";
   $("admCur").textContent=r?(photoUrl(r)?"عنده صورة":"بلا صورة")+" · "+(videoUrl(r)?"عنده فيديو":"بلا فيديو")+". اختار ملف بس إذا تريد تبدله.":"";
   $("admMsg").textContent="";$("admDel").hidden=!r;$("admDel").textContent="حذف نهائي";$("admDel").dataset.sure="";$("admDel").disabled=false;$("admSave").disabled=false;
   $("adm").showModal()}
 async function submitForm(e){e.preventDefault();const el=$("admF").elements,say=t=>{$("admMsg").textContent=t},btn=$("admSave");
   const title=el.title.value.trim();if(!title){say("اكتب اسم الخاتم.");return}
+  const base=formNum(el.price.value),salePrice=formNum(el.sale.value),saleDays=formNum(el.saleDays.value);
+  if(el.price.value.trim()&&!base){say("السعر الأصلي لازم يكون رقم.");return}
+  if(el.sale.value.trim()&&!salePrice){say("سعر التخفيض لازم يكون رقم.");return}
+  if(salePrice&&!base){say("اكتب السعر الأصلي أول، وبعدها سعر التخفيض.");return}
+  if(salePrice&&salePrice>=base){say(`سعر التخفيض لازم يكون أقل من السعر الأصلي (${base} ألف).`);return}
   const photoFile=el.photo.files[0],videoFile=el.video.files[0],old=Admin.editing!=null?byId(Admin.editing):null;
   const limit=20*1024*1024;if((videoFile&&videoFile.size>limit)||(photoFile&&photoFile.size>limit)){say("الملف أكبر من 20 ميغا. قص الفيديو أو قلل جودته.");return}
   if(videoFile&&videoFile.type!=="video/mp4"){say("الفيديو لازم يكون MP4.");return}
@@ -396,8 +418,8 @@ async function submitForm(e){e.preventDefault();const el=$("admF").elements,say=
     const r=old||{id:R.reduce((m,x)=>Math.max(m,x.id),-1)+1};
     Object.assign(r,up,{title});
     const set=(k,v)=>{if(v===""||v==null)delete r[k];else r[k]=v};
-    set("q",el.q.value.trim());set("nq",el.nq.value.trim());set("sg",el.sg.value.trim());set("size",el.size.value?+el.size.value:"");set("grade",el.grade.value);set("super",el.sup.value?true:"");
-    r.price=el.price.value===""?null:+el.price.value;set("label",el.usd.value?el.usd.value+" دولار":"");set("was",r.price!=null&&+el.was.value>r.price?+el.was.value:"");if(!r.was)delete r.saleEnd;else if(+el.saleDays.value>0)r.saleEnd=Date.now()+el.saleDays.value*864e5;
+    set("q",el.q.value.trim());set("nq",el.nq.value.trim());set("sg",el.sg.value.trim());set("size",formNum(el.size.value)||"");set("grade",el.grade.value);set("super",el.sup.value?true:"");
+    r.price=base?salePrice||base:null;const usd=formNum(el.usd.value);set("label",usd?usd+" دولار":"");set("was",salePrice?base:"");if(!salePrice)delete r.saleEnd;else if(saleDays)r.saleEnd=Date.now()+saleDays*864e5;
     if(r.video)delete r.photoOnly;
     r.t=tierOf(r);if(!old){r.newAt=Date.now();R.push(r)}
     say("دا أحفظ…");
