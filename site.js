@@ -56,7 +56,7 @@ const MARKUP=String.raw`<header class="top"><div class="g">
   <div><h5>ملاحظة</h5><p>الأسعار والتوفر قابلة للتغيير. تأكد من القطعة على الواتساب قبل التحويل.</p></div>
 </div></footer>
 
-<div class="adm-bar" id="admBar" hidden><b>وضع الآدمن</b><button type="button" class="adm-btn" id="admLedger" hidden>المبيعات</button><button type="button" class="adm-btn" id="admSold">المبيوع</button><button type="button" class="adm-btn main" id="admNew">＋ خاتم جديد</button></div>
+<div class="adm-bar" id="admBar" hidden><p class="adm-visits" id="admVisits" hidden></p><b>وضع الآدمن</b><button type="button" class="adm-btn" id="admLedger" hidden>المبيعات</button><button type="button" class="adm-btn" id="admSold">المبيوع</button><button type="button" class="adm-btn main" id="admNew">＋ خاتم جديد</button></div>
 <dialog id="adm"><button class="x" type="button" id="admX" aria-label="إغلاق">×</button><form id="admF" novalidate>
   <h3 id="admT">خاتم جديد</h3>
   <label>اسم الخاتم<input name="title" maxlength="80"></label>
@@ -571,7 +571,7 @@ async function submitLogin(e){e.preventDefault();const el=$("loginF").elements,s
   const token=el.token.value.trim(),owner=IS_PAGES?GH.owner:el.owner.value.trim();
   if(!token||!owner){say("اكتب مفتاح الدخول.");return}
   GH.token=token;GH.owner=owner;btn.disabled=true;say("دا أتأكد…");
-  try{await enterAdmin();store.set(KEY_TOKEN,token);store.set(KEY_OWNER,owner);el.token.value="";$("login").close();toast("دخلت على وضع الآدمن.")}
+  try{await enterAdmin();store.set(KEY_TOKEN,token);store.set(KEY_OWNER,owner);el.token.value="";$("login").close();toast("دخلت على وضع الآدمن.");startVisitCounts()}
   catch(x){GH.token="";btn.disabled=false;say(adminErr(x))}}
 async function startAdmin(){
   $("loginF").addEventListener("submit",submitLogin);$("loginX").onclick=()=>$("login").close();
@@ -581,4 +581,16 @@ async function startAdmin(){
   try{await enterAdmin()}catch(e){if(e.status===401||e.status===403||e.status===404){store.del(KEY_TOKEN);showLogin(adminErr(e))}}
 }
 
-chips();nav();render();syncCart();openFromLink();startAdmin().then(openFromLink);
+// Visitors: each browser makes up a random id and says it is here while the page is on screen. The owner's own visits don't count.
+const VISIT_PING_MS=45e3,VISIT_LIVE_MS=30e3,VISIT_FULL_MS=5*60e3;
+function visitId(){let v=store.get("mh-visitor");if(!/^[a-f0-9]{32}$/.test(v||"")){v=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,"0")).join("");store.set("mh-visitor",v)}return v}
+function visitPing(){if(document.hidden)return;fetch(BASE+"api/visit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({v:visitId()}),keepalive:true}).catch(()=>{})}
+function startVisitPings(){if(!IS_PAGES||navigator.webdriver||store.get(KEY_TOKEN)||/[?&#]admin\b/.test(location.search+location.hash))return;visitPing();setInterval(visitPing,VISIT_PING_MS);document.addEventListener("visibilitychange",visitPing)}
+// The owner's bar shows who is on the site now, refreshed every half minute, with the longer counts beside it.
+const visitNums={online:null,week:null,month:null};
+function showVisits(){const n=visitNums,el=$("admVisits");if(n.online==null)return;
+  el.innerHTML=`<span class="on"><i></i>أونلاين الآن <b>${n.online}</b></span><span>آخر أسبوع <b>${n.week==null?"–":n.week}</b></span><span>آخر شهر <b>${n.month==null?"–":n.month}</b></span>`;el.hidden=false}
+async function loadVisits(full){if(document.hidden||!GH.token)return;try{const res=await fetch(BASE+"api/visit"+(full?"":"?scope=online"),{cache:"no-store",headers:{Authorization:"Bearer "+GH.token}});if(!res.ok)return;Object.assign(visitNums,await res.json());showVisits()}catch(e){}}
+function startVisitCounts(){if(!IS_PAGES)return;loadVisits(true);setInterval(()=>loadVisits(false),VISIT_LIVE_MS);setInterval(()=>loadVisits(true),VISIT_FULL_MS);document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadVisits(true)})}
+
+chips();nav();render();syncCart();openFromLink();startVisitPings();startAdmin().then(()=>{if(Admin.on)startVisitCounts();openFromLink()});
