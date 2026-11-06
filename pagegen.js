@@ -6,7 +6,7 @@ const SITE_ROOT="https://khawatim-alaqeeq.pages.dev/";
 const SITE_TITLE="خواتم العقيق | خواتم عقيق يماني بنقش يدوي";
 const SITE_DESC="خواتم العقيق: خواتم عقيق يماني خام بنقش يدوي وصياغة فضة بحرينية. صور وفيديو لكل خاتم، والحجز بالواتساب، والتوصيل لكل محافظات العراق.";
 // The code Google Search Console gives to prove the site is ours. Empty until the owner connects it.
-const GOOGLE_VERIFY="";
+const GOOGLE_VERIFY="engS4P5Bt8waLBr8lJyhaBCUDFu37gJYzZSDEPEt0xw";
 function pageHtml(rows,settings){
   const data=rows.map(r=>JSON.stringify(r).replace(/</g,"\\u003c")).join(",\n");
   const store={"@context":"https://schema.org","@type":"JewelryStore",name:"خواتم العقيق",url:SITE_ROOT,image:SITE_ROOT+"img/logo.jpg",description:SITE_DESC,telephone:"+9647757685741",areaServed:"IQ"};
