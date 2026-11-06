@@ -65,6 +65,7 @@ const MARKUP=String.raw`<header class="top"><div class="g">
   <label>الصياغة<input name="sg"></label>
   <div class="two"><label>القياس<input name="size" type="number" inputmode="decimal" step="0.5" min="1"></label><label>السعر بالألف<input name="price" type="number" inputmode="numeric" min="0"></label></div>
   <label>السعر قبل التخفيض، خليه فارغ إذا ماكو تخفيض<input name="was" type="number" inputmode="numeric" min="0"></label>
+  <label>مدة التخفيض بالأيام، خليها فارغة حتى يبقى الوقت مثل ما هو<input name="saleDays" type="number" inputmode="numeric" min="1"></label>
   <label>أو السعر بالدولار<input name="usd" type="number" inputmode="numeric" min="0"></label>
   <div class="two"><label>الحجم<select name="grade"><option value="">بعد ما محدد</option><option value="nawa">نواعم</option><option value="wasat">وسط</option><option value="khashin">خشن</option></select></label><label>سوبر VIP<select name="sup"><option value="">لا، حسب السعر</option><option value="1">إي، سوبر VIP</option></select></label></div>
   <p class="hint">300 ألف وفوق تطلع عليه علامة VIP وحدها. إذا السعر فارغ يطلع «السعر عند الطلب».</p>
@@ -119,7 +120,9 @@ const tierLabel=r=>r.t==="wasat"?"":T(r.t).name;
 const NEW_SHOW_MS=7*24*60*60*1000;
 const isNew=r=>!r.sold&&r.newAt&&Date.now()-r.newAt<NEW_SHOW_MS;
 // A discount: price is what the customer pays and was is the price before it, shown struck through.
-const onSale=r=>!r.sold&&r.price!=null&&r.was>r.price;
+const onSale=r=>!r.sold&&r.price!=null&&r.was>r.price&&(!r.saleEnd||Date.now()<r.saleEnd);
+// When a discount's time runs out the ring goes back to its old price. A sold ring keeps the price it sold at.
+const endSales=rows=>{const now=Date.now();let any=false;rows.forEach(r=>{if(!r.sold&&r.was&&r.saleEnd&&now>=r.saleEnd){r.price=r.was;delete r.was;delete r.saleEnd;any=true}});return any};
 const ringLabels=r=>[isNew(r)&&"جديد",tierLabel(r),gradeName(r)].filter(Boolean);
 const ST={karazi:"radial-gradient(circle at 35% 30%,#e0604f,#6e130c 72%)",karaz:"radial-gradient(circle at 35% 30%,#c23a2c,#3d0603 75%)",
   aqiq:"radial-gradient(circle at 35% 30%,#e07a52,#7d2410 75%)",yellow:"radial-gradient(circle at 35% 30%,#fbe28a,#b98a12 75%)",
@@ -133,6 +136,7 @@ const toUsd=k=>Math.round(k*100/SETTINGS.rate);
 const toIqd=d=>Math.round(d*SETTINGS.rate/100);
 // سوبر VIP is chosen by hand. Otherwise 300 and up is VIP and the rest is وسط. A piece priced in dollars is VIP; a piece with no price yet waits in وسط.
 const tierOf=r=>r.super?"super":r.label||(r.was||r.price)>=300?"vip":"wasat";
+endSales(R);
 R.forEach(r=>{r.t=tierOf(r)});
 const byId=id=>R.find(r=>r.id===id);
 const live=()=>R.filter(r=>!r.sold);
@@ -188,7 +192,10 @@ function wireGallery(){
   tr.addEventListener("scroll",()=>set(Math.abs(tr.scrollLeft)>tr.clientWidth/2),{passive:true});
   $("tabP").onclick=()=>show(0);$("tabV").onclick=()=>show(1);
 }
-const priceHTML=r=>r.price!=null?`<span class="price">${onSale(r)?`<span class="was-row"><s class="was">${r.was} ألف</s><span class="sale-tag">تخفيض</span></span>`:""}${r.price}<small>ألف</small><em class="usd" dir="ltr">$${toUsd(r.price)}</em></span>`:r.label?`<span class="ask">${esc(r.label)}<em class="usd">${toIqd(parseFloat(r.label))} ألف</em></span>`:`<span class="ask">السعر عند الطلب</span>`;
+// The time left on a discount, in days, hours, minutes and seconds.
+const saleLeft=end=>{const t=Math.max(0,Math.floor((end-Date.now())/1000)),p=n=>String(n).padStart(2,"0");return `<b>${Math.floor(t/86400)}</b> يوم <b>${p(Math.floor(t/3600)%24)}</b> س <b>${p(Math.floor(t/60)%60)}</b> د <b>${p(t%60)}</b> ث`};
+const saleTimer=r=>onSale(r)&&r.saleEnd?`<span class="sale-timer" data-ends="${r.saleEnd}"><span class="st-l">باقي على التخفيض</span><span class="st-v">${saleLeft(r.saleEnd)}</span></span>`:"";
+const priceHTML=r=>r.price!=null?`<span class="price">${onSale(r)?`<span class="was-row"><s class="was">${r.was} ألف</s><span class="sale-tag">تخفيض</span></span>`:""}${r.price}<small>ألف</small><em class="usd" dir="ltr">$${toUsd(r.price)}</em>${saleTimer(r)}</span>`:r.label?`<span class="ask">${esc(r.label)}<em class="usd">${toIqd(parseFloat(r.label))} ألف</em></span>`:`<span class="ask">السعر عند الطلب</span>`;
 
 // stats + marquee
 const priced=live().filter(r=>r.price!=null).map(r=>r.price);
@@ -390,7 +397,7 @@ async function submitForm(e){e.preventDefault();const el=$("admF").elements,say=
     Object.assign(r,up,{title});
     const set=(k,v)=>{if(v===""||v==null)delete r[k];else r[k]=v};
     set("q",el.q.value.trim());set("nq",el.nq.value.trim());set("sg",el.sg.value.trim());set("size",el.size.value?+el.size.value:"");set("grade",el.grade.value);set("super",el.sup.value?true:"");
-    r.price=el.price.value===""?null:+el.price.value;set("label",el.usd.value?el.usd.value+" دولار":"");set("was",r.price!=null&&+el.was.value>r.price?+el.was.value:"");
+    r.price=el.price.value===""?null:+el.price.value;set("label",el.usd.value?el.usd.value+" دولار":"");set("was",r.price!=null&&+el.was.value>r.price?+el.was.value:"");if(!r.was)delete r.saleEnd;else if(+el.saleDays.value>0)r.saleEnd=Date.now()+el.saleDays.value*864e5;
     if(r.video)delete r.photoOnly;
     r.t=tierOf(r);if(!old){r.newAt=Date.now();R.push(r)}
     say("دا أحفظ…");
@@ -530,7 +537,7 @@ document.addEventListener("click",async e=>{
 
 // The page visitors load can be a minute behind, so the admin always starts from the newest saved catalogue.
 async function loadLive(){const f=await api(`/repos/${pubRepo()}/contents/index.html`),page=unb64(f.content),m=page.match(/<script type="application\/json" id="catalog">([\s\S]*?)<\/script>/),s=page.match(/<script type="application\/json" id="settings">([\s\S]*?)<\/script>/);
-  if(!m)throw {status:0};if(s)Object.assign(SETTINGS,JSON.parse(s[1]));const rows=JSON.parse(m[1]);R.length=0;rows.forEach(r=>{r.t=tierOf(r);R.push(r)})}
+  if(!m)throw {status:0};if(s)Object.assign(SETTINGS,JSON.parse(s[1]));const rows=JSON.parse(m[1]);endSales(rows);R.length=0;rows.forEach(r=>{r.t=tierOf(r);R.push(r)})}
 async function submitRate(e){e.preventDefault();const say=t=>{$("rateMsg").textContent=t},n=parseFloat(latinDigits($("rateIn").value)),old=SETTINGS.rate;
   if(!(n>=50&&n<=500)){say("اكتب رقم بين 50 و500.");return}
   if(n===old){say("هذا نفس السعر الحالي.");return}
@@ -592,5 +599,10 @@ function showVisits(){const n=visitNums,el=$("admVisits");if(n.online==null)retu
   el.innerHTML=`<span class="on"><i></i>أونلاين الآن <b>${n.online}</b></span><span>آخر أسبوع <b>${n.week==null?"–":n.week}</b></span><span>آخر شهر <b>${n.month==null?"–":n.month}</b></span>`;el.hidden=false}
 async function loadVisits(full){if(document.hidden||!GH.token)return;try{const res=await fetch(BASE+"api/visit"+(full?"":"?scope=online"),{cache:"no-store",headers:{Authorization:"Bearer "+GH.token}});if(!res.ok)return;Object.assign(visitNums,await res.json());showVisits()}catch(e){}}
 function startVisitCounts(){if(!IS_PAGES)return;loadVisits(true);setInterval(()=>loadVisits(false),VISIT_LIVE_MS);setInterval(()=>loadVisits(true),VISIT_FULL_MS);document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadVisits(true)})}
+
+// One timer moves every countdown on the page, and only those on show. At zero the old prices come back without a reload.
+function tickSales(){if(document.hidden)return;const list=document.querySelectorAll("[data-ends]");let done=false;list.forEach(el=>{if(Date.now()>=+el.dataset.ends)done=true;else el.lastElementChild.innerHTML=saleLeft(+el.dataset.ends)});
+  if(done&&endSales(R)){R.forEach(r=>{r.t=tierOf(r)});render();syncCart();if($("dlg").open&&openId!=null)openRing(byId(openId));if($("order").open)openOrder(orderLink)}}
+setInterval(tickSales,1000);
 
 chips();nav();render();syncCart();openFromLink();startVisitPings();startAdmin().then(()=>{if(Admin.on)startVisitCounts();openFromLink()});
