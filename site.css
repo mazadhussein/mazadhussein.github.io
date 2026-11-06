@@ -117,13 +117,13 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .card .badge.size{border-color:var(--ink);color:var(--ink)}
 .card .badge.new{background:var(--gold);border-color:var(--gold);color:#1d0f09}
 .sheet-badges span.new{background:var(--gold);border-color:var(--gold);color:#1d0f09}
-.card .badge.sale{background:var(--carnelian);border-color:var(--carnelian);color:#fff}
-.sheet-badges span.sale{background:var(--carnelian);border-color:var(--carnelian);color:#fff}
 /* Arabic labels use the plain font so they read at a glance. VIP alone keeps the decorative one. */
-.card .badge.new,.card .badge.sale,.card .badge.size{font-family:var(--body);font-weight:700;letter-spacing:0;line-height:1.35}
+.card .badge.new,.card .badge.size{font-family:var(--body);font-weight:700;letter-spacing:0;line-height:1.35}
 .sheet-badges span:not([style]){font-family:var(--body);line-height:1.35}
 #t-new .thead .big{font-family:var(--body)}
-.price .was{display:block;margin-bottom:2px;font:600 17px/1.3 var(--body);color:var(--ink);text-decoration:line-through;text-decoration-color:var(--carnelian);text-decoration-thickness:1.5px;text-align:start}
+.price .was-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-bottom:3px}
+.price .was{font:600 17px/1.3 var(--body);color:var(--ink);text-decoration:line-through;text-decoration-color:#e5303f;text-decoration-thickness:1.5px;white-space:nowrap}
+.price .sale-tag{padding:1px 7px;border-radius:999px;background:#c8102e;color:#fff;font:700 11.5px/1.45 var(--body);white-space:nowrap}
 .sheet-badges{display:flex;flex-wrap:wrap;gap:6px}
 .sheet-badges span{padding:4px 10px;border:1px solid var(--ink);border-radius:999px;color:var(--ink);font:700 12px var(--kufi)}
 .card .badge{font:700 12px var(--kufi);letter-spacing:.06em;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--vault) 70%,transparent);border:1px solid var(--metal);color:var(--metal);backdrop-filter:blur(6px)}

@@ -120,7 +120,7 @@ const NEW_SHOW_MS=7*24*60*60*1000;
 const isNew=r=>!r.sold&&r.newAt&&Date.now()-r.newAt<NEW_SHOW_MS;
 // A discount: price is what the customer pays and was is the price before it, shown struck through.
 const onSale=r=>!r.sold&&r.price!=null&&r.was>r.price;
-const ringLabels=r=>[isNew(r)&&"جديد",onSale(r)&&"تخفيض",tierLabel(r),gradeName(r)].filter(Boolean);
+const ringLabels=r=>[isNew(r)&&"جديد",tierLabel(r),gradeName(r)].filter(Boolean);
 const ST={karazi:"radial-gradient(circle at 35% 30%,#e0604f,#6e130c 72%)",karaz:"radial-gradient(circle at 35% 30%,#c23a2c,#3d0603 75%)",
   aqiq:"radial-gradient(circle at 35% 30%,#e07a52,#7d2410 75%)",yellow:"radial-gradient(circle at 35% 30%,#fbe28a,#b98a12 75%)",
   dur:"radial-gradient(circle at 35% 30%,#fff,#bfc4c8 75%)"};
@@ -188,7 +188,7 @@ function wireGallery(){
   tr.addEventListener("scroll",()=>set(Math.abs(tr.scrollLeft)>tr.clientWidth/2),{passive:true});
   $("tabP").onclick=()=>show(0);$("tabV").onclick=()=>show(1);
 }
-const priceHTML=r=>r.price!=null?`<span class="price">${onSale(r)?`<s class="was">${r.was} ألف</s>`:""}${r.price}<small>ألف</small><em class="usd" dir="ltr">$${toUsd(r.price)}</em></span>`:r.label?`<span class="ask">${esc(r.label)}<em class="usd">${toIqd(parseFloat(r.label))} ألف</em></span>`:`<span class="ask">السعر عند الطلب</span>`;
+const priceHTML=r=>r.price!=null?`<span class="price">${onSale(r)?`<span class="was-row"><s class="was">${r.was} ألف</s><span class="sale-tag">تخفيض</span></span>`:""}${r.price}<small>ألف</small><em class="usd" dir="ltr">$${toUsd(r.price)}</em></span>`:r.label?`<span class="ask">${esc(r.label)}<em class="usd">${toIqd(parseFloat(r.label))} ألف</em></span>`:`<span class="ask">السعر عند الطلب</span>`;
 
 // stats + marquee
 const priced=live().filter(r=>r.price!=null).map(r=>r.price);
@@ -247,7 +247,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(
 
 const latinDigits=s=>s.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
 function card(r){const t=T(r.t);return `<article class="card${r.sold?" is-sold":""}" tabindex="0" data-id="${r.id}" style="--metal:${t.metal}">
-  <div class="badges">${isNew(r)?`<span class="badge new">جديد</span>`:""}${onSale(r)?`<span class="badge sale">تخفيض</span>`:""}${tierLabel(r)?`<span class="badge">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span class="badge size">${gradeName(r)}</span>`:""}</div><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${!r.sold&&videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
+  <div class="badges">${isNew(r)?`<span class="badge new">جديد</span>`:""}${tierLabel(r)?`<span class="badge">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span class="badge size">${gradeName(r)}</span>`:""}</div><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${!r.sold&&videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
   <div class="in"><h4>${esc(r.title)}</h4><p class="by">${esc(["رقم "+ringNo(r),r.nq,r.sg].filter(Boolean).join(" · "))}</p>
   <div class="row">${priceHTML(r)}${r.sold?"":addBtn(r)}</div>${r.sold?"":`<p class="ship">${SHIP_SHORT}</p>`}${adminRow(r)}</div></article>`}
 
@@ -306,7 +306,7 @@ let openId=null;
 const saleBar=r=>Admin.ledger&&!r.sold?`<div class="adm-sale"><b>هل تم الشراء؟</b><button type="button" class="adm-btn main" data-sale="${r.id}" data-kind="sold">تم الشراء</button><button type="button" class="adm-btn" data-sale="${r.id}" data-kind="reserved">حجز</button></div>`:"";
 function openRing(r){const t=T(r.t);openId=r.id;
   $("sheet").innerHTML=`${saleBar(r)}<div class="sheet" style="--metal:${t.metal}">${gallery(r)}<div class="tx">
-   ${ringLabels(r).length?`<div class="sheet-badges">${isNew(r)?`<span class="new">جديد</span>`:""}${onSale(r)?`<span class="sale">تخفيض</span>`:""}${tierLabel(r)?`<span style="border-color:${t.metal};color:${t.metal}">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span>${gradeName(r)}</span>`:""}</div>`:""}
+   ${ringLabels(r).length?`<div class="sheet-badges">${isNew(r)?`<span class="new">جديد</span>`:""}${tierLabel(r)?`<span style="border-color:${t.metal};color:${t.metal}">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span>${gradeName(r)}</span>`:""}</div>`:""}
    <h3>${esc(r.title)}</h3><p class="q">${esc(r.q||"")}</p>
    <div class="specs"><dl>${[["رقم الخاتم",ringNo(r)],["النقش",r.nq],["الصياغة",r.sg],["الحجم",gradeName(r)],["القياس",r.size],["الحجر","عقيق يماني خام"],["التوصيل",r.sold?"":SHIP_FULL]].filter(x=>x[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
    <figure class="qr" id="qrWrap"><img id="qrImg" data-ring="${ringNo(r)}" alt="باركود الخاتم رقم ${ringNo(r)}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="><figcaption>باركود الخاتم</figcaption></figure></div>
