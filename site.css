@@ -115,6 +115,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .card .ph::after{content:"";position:absolute;inset:auto 0 0;height:45%;background:linear-gradient(transparent,color-mix(in srgb,var(--case) 96%,transparent))}
 .card .badges{position:absolute;top:12px;inset-inline-start:12px;z-index:2;display:flex;flex-wrap:wrap;gap:5px}
 .card .badge.size{border-color:var(--ink);color:var(--ink)}
+.card .badge.new{background:var(--gold);border-color:var(--gold);color:#1d0f09}
+.sheet-badges span.new{background:var(--gold);border-color:var(--gold);color:#1d0f09}
 .sheet-badges{display:flex;flex-wrap:wrap;gap:6px}
 .sheet-badges span{padding:4px 10px;border:1px solid var(--ink);border-radius:999px;color:var(--ink);font:700 12px var(--kufi)}
 .card .badge{font:700 12px var(--kufi);letter-spacing:.06em;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--vault) 70%,transparent);border:1px solid var(--metal);color:var(--metal);backdrop-filter:blur(6px)}

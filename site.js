@@ -114,7 +114,10 @@ const GRADES=[{id:"nawa",name:"نواعم",one:"ناعم"},{id:"wasat",name:"و�
 const gradeName=r=>(GRADES.find(g=>g.id===r.grade)||{}).one;
 // Only VIP-level rings carry a price label. The word وسط now means size alone.
 const tierLabel=r=>r.t==="wasat"?"":T(r.t).name;
-const ringLabels=r=>[tierLabel(r),gradeName(r)].filter(Boolean);
+// New goods: a ring carries «جديد» and sits in its own section for a week from newAt, then goes back to the normal lists by itself.
+const NEW_SHOW_MS=7*24*60*60*1000;
+const isNew=r=>!r.sold&&r.newAt&&Date.now()-r.newAt<NEW_SHOW_MS;
+const ringLabels=r=>[isNew(r)&&"جديد",tierLabel(r),gradeName(r)].filter(Boolean);
 const ST={karazi:"radial-gradient(circle at 35% 30%,#e0604f,#6e130c 72%)",karaz:"radial-gradient(circle at 35% 30%,#c23a2c,#3d0603 75%)",
   aqiq:"radial-gradient(circle at 35% 30%,#e07a52,#7d2410 75%)",yellow:"radial-gradient(circle at 35% 30%,#fbe28a,#b98a12 75%)",
   dur:"radial-gradient(circle at 35% 30%,#fff,#bfc4c8 75%)"};
@@ -205,7 +208,7 @@ function chips(){const row=(list,now,key)=>[{id:"all",name:"الكل"},...list].
   $("grades").innerHTML=row(GRADES,grade,"g");
   // Cheapest first in the list, while the sections on the page start from the most expensive.
   $("tiers").innerHTML=row(TIERS.filter(t=>t.id!=="wasat").reverse(),tier,"t")}
-function nav(){$("nav").innerHTML=TIERS.filter(t=>live().some(r=>r.t===t.id)).map(t=>`<a href="#t-${t.id}">${t.name}</a>`).join("")+`<a href="#shop">قائمة الأسعار</a>`}
+function nav(){$("nav").innerHTML=(R.some(isNew)?`<a href="#t-new">بضاعة جديدة</a>`:"")+TIERS.filter(t=>live().some(r=>r.t===t.id)).map(t=>`<a href="#t-${t.id}">${t.name}</a>`).join("")+`<a href="#shop">قائمة الأسعار</a>`}
 // Long lists open in steps, so a phone never draws hundreds of rings at once.
 const PAGE_STEP=24;let more={};
 $("tiers").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;tier=b.dataset.t;more={};try{localStorage.setItem("mh-tier",tier)}catch(e){}chips();render()};
@@ -241,7 +244,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(
 
 const latinDigits=s=>s.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
 function card(r){const t=T(r.t);return `<article class="card${r.sold?" is-sold":""}" tabindex="0" data-id="${r.id}" style="--metal:${t.metal}">
-  <div class="badges">${tierLabel(r)?`<span class="badge">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span class="badge size">${gradeName(r)}</span>`:""}</div><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${!r.sold&&videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
+  <div class="badges">${isNew(r)?`<span class="badge new">جديد</span>`:""}${tierLabel(r)?`<span class="badge">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span class="badge size">${gradeName(r)}</span>`:""}</div><div class="ph">${photo(r)}${r.sold?`<span class="sold-rib">تم البيع</span>`:""}${!r.sold&&videoUrl(r)?`<span class="play">▶ فيديو</span>`:""}</div>
   <div class="in"><h4>${esc(r.title)}</h4><p class="by">${esc(["رقم "+ringNo(r),r.nq,r.sg].filter(Boolean).join(" · "))}</p>
   <div class="row">${priceHTML(r)}${r.sold?"":addBtn(r)}</div>${r.sold?"":`<p class="ship">${SHIP_SHORT}</p>`}${adminRow(r)}</div></article>`}
 
@@ -249,10 +252,12 @@ function render(){
   const [lo,hi]=slider(),q=$("q").value.trim(),full=lo===100&&hi===650;
   const ok=r=>(tier==="all"||r.t===tier)&&(full||(r.price!=null&&r.price>=lo&&r.price<=hi))&&(grade==="all"||r.grade===grade)&&(!q||String(ringNo(r))===latinDigits(q)||(r.title+(r.q||"")+(r.nq||"")+(r.sg||"")).includes(q));
   let n=0;
-  const html=TIERS.map(t=>{const it=R.filter(r=>onShow(r)&&r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a));n+=it.length;if(!it.length)return"";
+  const section=(t,it)=>{n+=it.length;if(!it.length)return"";
     return `<section class="tier" id="t-${t.id}" style="--metal:${t.metal}"><div class="g">
       <div class="thead"><span class="big">${t.big}</span><h3>${t.name}</h3><p>${t.note} · ${it.length} قطعة</p></div>
-      <div class="rail-x">${it.slice(0,more[t.id]||PAGE_STEP).map(card).join("")}</div>${it.length>(more[t.id]||PAGE_STEP)?`<button type="button" class="more-btn" data-more="${t.id}">عرض المزيد (باقي ${it.length-(more[t.id]||PAGE_STEP)})</button>`:""}</div></section>`}).join("");
+      <div class="rail-x">${it.slice(0,more[t.id]||PAGE_STEP).map(card).join("")}</div>${it.length>(more[t.id]||PAGE_STEP)?`<button type="button" class="more-btn" data-more="${t.id}">عرض المزيد (باقي ${it.length-(more[t.id]||PAGE_STEP)})</button>`:""}</div></section>`};
+  const fresh=R.filter(r=>isNew(r)&&ok(r)).sort((a,b)=>(b.newAt-a.newAt)||(rank(b)-rank(a)));
+  const html=section({id:"new",name:"بضاعة جديدة",big:"جديد",note:"نزلت هذا الأسبوع",metal:"var(--gold)"},fresh)+TIERS.map(t=>section(t,R.filter(r=>onShow(r)&&!isNew(r)&&r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a)))).join("");
   const soldOnly=Admin.on&&Admin.showSold;document.body.classList.toggle("sold-only",soldOnly);
   $("list").innerHTML=soldOnly?soldSection():html||`<div class="g"><div class="empty">ماكو خاتم بهذي المواصفات. وسّع مدى السعر، أو راسلنا على الواتساب ونلكالك اللي تريده.</div></div>`;
   $("count").textContent=n+" قطعة مطابقة";
@@ -298,7 +303,7 @@ let openId=null;
 const saleBar=r=>Admin.ledger&&!r.sold?`<div class="adm-sale"><b>هل تم الشراء؟</b><button type="button" class="adm-btn main" data-sale="${r.id}" data-kind="sold">تم الشراء</button><button type="button" class="adm-btn" data-sale="${r.id}" data-kind="reserved">حجز</button></div>`:"";
 function openRing(r){const t=T(r.t);openId=r.id;
   $("sheet").innerHTML=`${saleBar(r)}<div class="sheet" style="--metal:${t.metal}">${gallery(r)}<div class="tx">
-   ${ringLabels(r).length?`<div class="sheet-badges">${tierLabel(r)?`<span style="border-color:${t.metal};color:${t.metal}">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span>${gradeName(r)}</span>`:""}</div>`:""}
+   ${ringLabels(r).length?`<div class="sheet-badges">${isNew(r)?`<span class="new">جديد</span>`:""}${tierLabel(r)?`<span style="border-color:${t.metal};color:${t.metal}">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span>${gradeName(r)}</span>`:""}</div>`:""}
    <h3>${esc(r.title)}</h3><p class="q">${esc(r.q||"")}</p>
    <div class="specs"><dl>${[["رقم الخاتم",ringNo(r)],["النقش",r.nq],["الصياغة",r.sg],["الحجم",gradeName(r)],["القياس",r.size],["الحجر","عقيق يماني خام"],["التوصيل",r.sold?"":SHIP_FULL]].filter(x=>x[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
    <figure class="qr" id="qrWrap"><img id="qrImg" data-ring="${ringNo(r)}" alt="باركود الخاتم رقم ${ringNo(r)}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="><figcaption>باركود الخاتم</figcaption></figure></div>
@@ -384,7 +389,7 @@ async function submitForm(e){e.preventDefault();const el=$("admF").elements,say=
     set("q",el.q.value.trim());set("nq",el.nq.value.trim());set("sg",el.sg.value.trim());set("size",el.size.value?+el.size.value:"");set("grade",el.grade.value);set("super",el.sup.value?true:"");
     r.price=el.price.value===""?null:+el.price.value;set("label",el.usd.value?el.usd.value+" دولار":"");
     if(r.video)delete r.photoOnly;
-    r.t=tierOf(r);if(!old)R.push(r);
+    r.t=tierOf(r);if(!old){r.newAt=Date.now();R.push(r)}
     say("دا أحفظ…");
     if(await saveCatalog(snapshot,say,extra)){$("adm").close();toast(SAVED)}else btn.disabled=false;
   }catch(x){btn.disabled=false;say(x&&x.msg||adminErr(x))}
