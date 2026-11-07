@@ -370,7 +370,7 @@ async function uploadFile(blob,path){const r=await api(`/repos/${pubRepo()}/git/
 const catalogRows=()=>R.map(({t,...r})=>r);
 // A save writes the main page and the pages of the rings that changed, so it stays quick with hundreds of rings.
 function siteEntries(snapshot){const base=`https://${SITE_HOST}/`,rows=catalogRows(),before=new Map((snapshot?JSON.parse(snapshot):[]).map(r=>[r.id,JSON.stringify(r)]));
-  return [{path:"index.html",content:pageHtml(rows,SETTINGS)},...rows.filter(r=>before.get(r.id)!==JSON.stringify(r)).map(r=>({path:"r/"+(r.id+1)+".html",content:ringPage(r,base)}))]}
+  return [{path:"index.html",content:pageHtml(rows,SETTINGS)},{path:"sitemap.xml",content:sitemapXml(rows,base)},...rows.filter(r=>before.get(r.id)!==JSON.stringify(r)).flatMap(r=>[{path:"r/"+(r.id+1)+".html",content:ringPage(r,base)},{path:"khatam/"+(r.id+1)+".html",content:khatamPage(r,base)}])]}
 const restore=snapshot=>{const now=JSON.parse(snapshot);R.length=0;now.forEach(r=>{r.t=tierOf(r);R.push(r)})};
 function refreshAdmin(){$("admSold").textContent=Admin.showSold?"كل الخواتم":"المبيوع ("+R.filter(r=>r.sold).length+")";nav();render()}
 async function saveCatalog(snapshot,say,extra=[]){
