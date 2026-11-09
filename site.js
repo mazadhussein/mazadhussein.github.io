@@ -68,7 +68,7 @@ const MARKUP=String.raw`<header class="top"><div class="g">
   <label>مدة التخفيض بالأيام، اختيارية<input name="saleDays" type="text" inputmode="numeric" autocomplete="off"></label>
   <label>أو السعر بالدولار<input name="usd" type="text" inputmode="numeric" autocomplete="off"></label>
   <div class="two"><label>الحجم<select name="grade"><option value="">بعد ما محدد</option><option value="nawa">نواعم</option><option value="wasat">وسط</option><option value="khashin">خشن</option></select></label><label>سوبر VIP<select name="sup"><option value="">لا، حسب السعر</option><option value="1">إي، سوبر VIP</option></select></label></div>
-  <p class="hint">300 ألف وفوق تطلع عليه علامة VIP وحدها. إذا السعر فارغ يطلع «السعر عند الطلب».</p>
+  <p class="hint">300 ألف وفوق تطلع عليه علامة VIP وحدها، وفوق 400 ألف تطلع سوبر VIP. إذا السعر فارغ يطلع «السعر عند الطلب».</p>
   <label>صورة الخاتم<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
   <label>فيديو الخاتم، MP4 وأقل من 20 ميغا<input name="video" type="file" accept="video/mp4,video/webm"></label>
   <p class="cur" id="admCur"></p>
@@ -107,7 +107,7 @@ const MARKUP=String.raw`<header class="top"><div class="g">
 </form></dialog>`;
 document.getElementById("app").innerHTML=MARKUP;
 const TIERS=[
-  {id:"super",name:"سوبر VIP",big:"سوبر",note:"قطع مختارة",metal:"var(--silver)"},
+  {id:"super",name:"سوبر VIP",big:"سوبر",note:"فوق 400 ألف",metal:"var(--silver)"},
   {id:"vip",name:"VIP",big:"VIP",note:"من 300 ألف وفوق",metal:"var(--gold)"},
   {id:"wasat",name:"الخواتم",big:"الخواتم",note:"أقل من 300 ألف",metal:"var(--carnelian)"}
 ];
@@ -135,7 +135,9 @@ const SETTINGS={rate:152};try{Object.assign(SETTINGS,JSON.parse(document.getElem
 const toUsd=k=>Math.round(k*100/SETTINGS.rate);
 const toIqd=d=>Math.round(d*SETTINGS.rate/100);
 // سوبر VIP is chosen by hand. Otherwise 300 and up is VIP and the rest is وسط. A piece priced in dollars is VIP; a piece with no price yet waits in وسط.
-const tierOf=r=>r.super?"super":r.label||(r.was||r.price)>=300?"vip":"wasat";
+// The owner's rule: over 400 thousand is سوبر VIP, 300 and up is VIP. A discount keeps the ring's class, and a dollar price counts at the exchange rate.
+const tierBase=r=>r.label?toIqd(parseFloat(r.label)):(r.was||r.price||0);
+const tierOf=r=>r.super||tierBase(r)>400?"super":r.label||tierBase(r)>=300?"vip":"wasat";
 endSales(R);
 R.forEach(r=>{r.t=tierOf(r)});
 const byId=id=>R.find(r=>r.id===id);
@@ -334,7 +336,11 @@ function openRing(r){const t=T(r.t);openId=r.id;
    ${r.sold?`<p class="sold-tag">تم البيع</p>`:`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">${priceHTML(r)}
    <span style="display:flex;gap:8px;flex-wrap:wrap">${addBtn(r)}</span></div>`}
    <p style="margin:0;color:var(--dim);font-size:13px">أو راسلنا على <span class="num" style="font-size:15px">0775 768 5741</span></p></div></div>${r.sold?"":`<a class="wa-float" href="${wa(r)}" target="_blank" rel="noopener">${WA_ICON}حجز عبر واتساب</a>`}`;
-  if(!$("dlg").open)$("dlg").showModal();wireGallery();drawQr(r)}
+  if(!$("dlg").open)$("dlg").showModal();wireGallery();drawQr(r);
+  // A long inscription shows its first lines; «قراءة المزيد» opens the rest, and the details stay right below for those who skip it.
+  const qEl=$("sheet").querySelector(".q");
+  if(qEl&&qEl.scrollHeight>qEl.clientHeight+4){const b=document.createElement("button");b.type="button";b.className="q-more";b.textContent="قراءة المزيد";
+    b.onclick=()=>{const open=qEl.classList.toggle("open");b.textContent=open?"عرض أقل":"قراءة المزيد"};qEl.after(b)}}
 $("x").onclick=()=>$("dlg").close();
 $("dlg").addEventListener("close",()=>{if($("dlg").open)return;openId=null;const v=$("vid");if(v)v.pause();$("sheet").innerHTML=""});
 $("dlg").addEventListener("click",e=>{if(e.target===$("dlg"))$("dlg").close()});
