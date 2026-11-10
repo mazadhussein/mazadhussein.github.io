@@ -17,22 +17,26 @@ const MARKUP=String.raw`<header class="top"><div class="g">
     </div>
     <div class="stats" id="stats"></div>
   </div>
-  <figure class="showcase" style="margin:0">
-    <div class="frame"><img id="heroImg" src="photo/232507535.jpg" alt="خاتم عقيق يماني منقوش"></div>
-    <figcaption class="tag"><small id="heroTier">وسط</small><p id="heroName">لونين بحجر واحد</p></figcaption>
+  <figure class="adsq" style="margin:0" aria-label="خواتم مختارة">
+    <div class="ad-box">
+      <div class="ad-track" id="adTrack"></div>
+      <span class="ad-n" id="adN"></span>
+      <button type="button" class="ad-arw ad-r" id="adPrev" aria-label="الخاتم السابق">›</button>
+      <button type="button" class="ad-arw ad-l" id="adNext" aria-label="الخاتم التالي">‹</button>
+    </div>
+    <div class="ad-dots" id="adDots"></div>
   </figure>
 </div></section>
 
 <div class="marq" aria-hidden="true"><div class="track" id="marq"></div></div>
 
+<nav class="sizes" aria-label="الأحجام"><div class="g sizes-in" id="sizes"></div></nav>
+<p class="swipe-hint">→ اسحب على الخواتم يمين أو يسار حتى تبدّل الحجم ←</p>
+
 <section class="filters" id="shop"><div class="g">
   <h2>قائمة الأسعار</h2>
   <p class="sub">الأسعار بالألف دينار عراقي. اسحب المؤشر وحدد من وإلى.</p>
   <div class="fbox">
-    <div style="display:grid;gap:12px">
-      <div><label class="h">الأحجام</label><div class="chips" id="grades" role="group" aria-label="الأحجام"></div></div>
-      <div><label class="h">الأسعار</label><div class="chips" id="tiers" role="group" aria-label="فئات الأسعار"></div></div>
-    </div>
     <div><label class="h" for="lo">السعر</label>
       <div class="dual"><div class="rail"></div><div class="fill" id="fill"></div>
         <input id="lo" type="range" min="100" max="650" step="5" value="100" aria-label="السعر من">
@@ -205,26 +209,75 @@ $("stats").innerHTML=[[live().length,"قطعة متوفرة"],[TIERS.length,"ف�
 const names=["جواد يوسفي","مهدي شجاعي","سيد محمد أفضل","شهباز البحرين","ياسر البحرين","عارف البحرين","الأستاذ فيصل","حسين قاسمي","عليم 110"];
 $("marq").innerHTML=[...names,...names].map(n=>`<span>${n}</span>`).join("");
 
-// hero rotation through photographed rings
-const heroes=live().filter(r=>videoUrl(r)&&photoUrl(r));let hi=0;
-if(heroes[0]){$("heroImg").src=photoUrl(heroes[0]);$("heroName").textContent=heroes[0].title;$("heroTier").textContent=ringLabels(heroes[0]).join(" · ")}
-if(heroes.length&&!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(()=>{
-  hi=(hi+1)%heroes.length;const r=heroes[hi],im=$("heroImg");
-  im.style.opacity=0;setTimeout(()=>{im.src=photoUrl(r);$("heroName").textContent=r.title;$("heroTier").textContent=ringLabels(r).join(" · ");im.style.opacity=1},500);
-},4500);
+// Square ad at the top: new goods first, then the dearest rings. The customer swipes through it or uses the arrows, and a tap opens the ring.
+const AD_MAX=8;
+const ads=[...new Set([...R.filter(r=>isNew(r)&&photoUrl(r)).sort((a,b)=>rank(b)-rank(a)),...live().filter(r=>photoUrl(r)&&videoUrl(r)).sort((a,b)=>rank(b)-rank(a))])].slice(0,AD_MAX);
+const adPrice=r=>r.price!=null?`${onSale(r)?`<s>${r.was}</s>`:""}${r.price}<small> ألف</small>`:esc(r.label||"السعر عند الطلب");
+$("adTrack").innerHTML=ads.map((r,i)=>`<button type="button" class="ad-slide" data-ad="${r.id}" aria-label="${esc(r.title)}">
+  <img src="${esc(photoUrl(r))}" alt="${esc(r.title)}"${i?` loading="lazy"`:""}>
+  <span class="ad-badges">${ringLabels(r).map(l=>`<i${l==="جديد"?` class="new"`:""}>${l}</i>`).join("")}</span>
+  <span class="ad-cap"><b class="ad-t">${esc(r.title)}</b><span class="ad-row"><span class="ad-p">${adPrice(r)}</span><span class="ad-go">شوف الخاتم</span></span></span></button>`).join("");
+$("adDots").innerHTML=ads.map((r,i)=>`<button type="button" data-dot="${i}" aria-label="خاتم ${i+1}"></button>`).join("");
+const adTr=$("adTrack");let adI=0,adHold=0;
+// Right-to-left scrolling counts leftwards as negative in today's browsers.
+const adSign=()=>getComputedStyle(adTr).direction==="rtl"?-1:1;
+const adGo=i=>{adI=(i+ads.length)%ads.length;adTr.scrollTo({left:adSign()*adI*adTr.clientWidth,behavior:"smooth"})};
+const adMark=()=>{$("adN").textContent=ads.length?`${adI+1} / ${ads.length}`:"";document.querySelectorAll("[data-dot]").forEach(d=>d.setAttribute("aria-current",+d.dataset.dot===adI))};
+adTr.addEventListener("scroll",()=>{const i=Math.round(Math.abs(adTr.scrollLeft)/adTr.clientWidth);if(i!==adI){adI=i;adMark()}},{passive:true});
+const adTouch=()=>{adHold=Date.now()+9000};
+["pointerdown","wheel","touchstart"].forEach(ev=>adTr.addEventListener(ev,adTouch,{passive:true}));
+$("adPrev").onclick=()=>{adTouch();adGo(adI-1)};$("adNext").onclick=()=>{adTouch();adGo(adI+1)};
+$("adDots").onclick=e=>{const d=e.target.closest("[data-dot]");if(d){adTouch();adGo(+d.dataset.dot)}};
+adTr.onclick=e=>{const s=e.target.closest("[data-ad]");if(s)openRing(byId(+s.dataset.ad))};
+adMark();
+if(ads.length>1&&!matchMedia("(prefers-reduced-motion: reduce)").matches)setInterval(()=>{if(Date.now()>adHold&&!document.hidden)adGo(adI+1)},4500);
 
 // filters
 let tier="all",grade="all";try{tier=localStorage.getItem("mh-tier")||"all"}catch(e){}
 if(!T(tier)||tier==="wasat")tier="all";
-function chips(){const row=(list,now,key)=>[{id:"all",name:"الكل"},...list].map(t=>`<button type="button" class="chip" data-${key}="${t.id}" aria-pressed="${t.id===now}">${t.name}</button>`).join("");
-  $("grades").innerHTML=row(GRADES,grade,"g");
-  // Cheapest first in the list, while the sections on the page start from the most expensive.
-  $("tiers").innerHTML=row(TIERS.filter(t=>t.id!=="wasat").reverse(),tier,"t")}
+// One bar for sizes and price classes under the ad. A swipe on the rings moves to the next or previous one.
+const TABS=[{id:"all",name:"الكل"},...GRADES.map(g=>({id:g.id,name:g.name,g:g.id})),{id:"vip",name:"VIP",t:"vip"},{id:"super",name:"سوبر VIP",t:"super"}];
+let tab=tier==="vip"||tier==="super"?tier:"all";
+const tabOf=id=>TABS.find(x=>x.id===id)||TABS[0];
+const tabCount=x=>live().filter(r=>(!x.g||r.grade===x.g)&&(!x.t||r.t===x.t)).length;
+function chips(){
+  const bar=$("sizes");
+  bar.innerHTML=TABS.map(x=>`<button type="button" class="size-tab" data-tab="${x.id}" aria-pressed="${x.id===tab}"><bdi>${x.name}</bdi><span>${tabCount(x)}</span></button>`).join("")+`<i class="size-ink" id="sizeInk"></i>`;
+  requestAnimationFrame(()=>{const b=bar.querySelector(`[data-tab="${tab}"]`),ink=$("sizeInk");if(!b||!ink)return;
+    ink.style.left=b.offsetLeft+10+"px";ink.style.width=b.offsetWidth-20+"px";
+    bar.scrollTo({left:b.offsetLeft-(bar.clientWidth-b.offsetWidth)/2,behavior:"smooth"})})}
+function setTab(id,from,push){
+  const old=TABS.findIndex(x=>x.id===tab),now=TABS.findIndex(x=>x.id===id);if(now<0||now===old)return;
+  const x=TABS[now];tab=x.id;grade=x.g||"all";tier=x.t||"all";pg=1;
+  try{localStorage.setItem("mh-tier",tier)}catch(e){}
+  chips();render();if(push!==false)pushView();
+  // The new list slides in from the side the customer swiped towards.
+  const list=$("list"),dir=from||(now>old?-1:1);
+  if(list.animate&&!matchMedia("(prefers-reduced-motion: reduce)").matches)list.animate([{transform:`translateX(${dir*48}px)`,opacity:.2},{transform:"none",opacity:1}],{duration:260,easing:"ease-out"});
+  const top=list.getBoundingClientRect().top,stick=$("sizes").getBoundingClientRect().bottom+8;
+  if(top<stick)scrollTo({top:scrollY+top-stick,behavior:"instant"});
+}
+$("sizes").onclick=e=>{const b=e.target.closest("[data-tab]");if(b)setTab(b.dataset.tab)};
+// Swipe on the rings: finger to the right goes to the next class (it sits to the left in Arabic order), finger to the left goes back.
+// It listens on the whole page, so a swipe anywhere under the tab bar counts, and the CSS keeps the browser from taking sideways moves there (touch-action: pan-y).
+// Not on the ad, the tab bar itself, the price slider or an open ring, which have their own sideways moves.
+(()=>{const list=$("list");let x0=0,y0=0,t0=0,dx=0,mode="",on=false;
+  const zone=el=>el&&el.closest&&!el.closest("dialog,.ad-box,.sizes,input,.dual,textarea,select")&&!!el.closest("#list,.swipe-hint,.filters,.sizes-gap");
+  document.addEventListener("touchstart",e=>{on=e.touches.length===1&&zone(e.target);if(!on)return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now();dx=0;mode=""},{passive:true});
+  document.addEventListener("touchmove",e=>{if(!on||e.touches.length!==1)return;const mx=e.touches[0].clientX-x0,my=e.touches[0].clientY-y0;
+    if(!mode&&(Math.abs(mx)>10||Math.abs(my)>10))mode=Math.abs(mx)>Math.abs(my)*1.15?"x":"y";
+    if(mode==="x"){dx=mx;list.style.transform=`translateX(${dx*.45}px)`;list.style.opacity=String(1-Math.min(Math.abs(dx)/600,.35))}},{passive:true});
+  const end=()=>{if(!on||mode!=="x"){on=false;return}on=false;list.style.transition="transform .2s,opacity .2s";list.style.transform="";list.style.opacity="";
+    setTimeout(()=>{list.style.transition=""},220);mode="";
+    // A long drag or a quick flick both count.
+    const far=Math.abs(dx)>60||(Math.abs(dx)>35&&Date.now()-t0<300);
+    const i=TABS.findIndex(x=>x.id===tab),j=i+(dx>0?1:-1);if(far&&TABS[j])setTab(TABS[j].id,dx>0?-1:1)};
+  document.addEventListener("touchend",end);document.addEventListener("touchcancel",end)})();
+const topH=()=>document.documentElement.style.setProperty("--top-h",document.querySelector(".top").offsetHeight+"px");
+topH();addEventListener("resize",()=>{topH();chips()});
 function nav(){$("nav").innerHTML=(R.some(isNew)?`<a href="#t-new">بضاعة جديدة</a>`:"")+TIERS.filter(t=>live().some(r=>r.t===t.id)).map(t=>`<a href="#t-${t.id}">${t.name}</a>`).join("")+`<a href="#shop">قائمة الأسعار</a>`}
 // Long lists open in steps, so a phone never draws hundreds of rings at once.
-const PAGE_STEP=24;let more={};
-$("tiers").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;tier=b.dataset.t;more={};try{localStorage.setItem("mh-tier",tier)}catch(e){}chips();render()};
-$("grades").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;grade=b.dataset.g;more={};chips();render()};
+const PER_PAGE=40;let pg=1;
 function slider(){let lo=+$("lo").value,hi=+$("hi").value;if(lo>hi){[lo,hi]=[hi,lo]}
   $("loV").textContent=lo;$("hiV").textContent=hi;const span=650-100;
   $("fill").style.right=((lo-100)/span*100)+"%";$("fill").style.left=(100-(hi-100)/span*100)+"%";return[lo,hi]}
@@ -249,7 +302,7 @@ function syncCart(){
   `<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div><p class="ship-note"><b>${shipTotal(sum)}</b><br>التوصيل: ${SHIP_FULL}.</p>${unpriced?`<p style="margin:0;color:var(--dim);font-size:13px">المجموع بدون ${unpriced} قطعة سعرها عند الطلب.</p>`:""}
   <a class="pill-wa" style="justify-content:center" href="https://wa.me/9647757685741?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">أرسل الطلب على الواتساب</a>`;
 }
-$("cartBtn").onclick=()=>{syncCart();$("cart").showModal()};
+$("cartBtn").onclick=()=>{syncCart();$("cart").showModal();pushModal("cart",1)};
 $("cartX").onclick=()=>$("cart").close();
 $("cartBox").addEventListener("click",e=>{const b=e.target.closest("[data-rm]");if(b)toggle(+b.dataset.rm)});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(b){e.stopPropagation();toggle(+b.dataset.add)}},true);
@@ -275,32 +328,45 @@ function searchRings(terms){const scored=R.filter(onShow).map(r=>{const fields=[
 function render(){
   const [lo,hi]=slider(),raw=$("q").value.trim(),terms=searchWords(raw),full=lo===100&&hi===650;
   const ok=r=>(tier==="all"||r.t===tier)&&(full||(r.price!=null&&r.price>=lo&&r.price<=hi))&&(grade==="all"||r.grade===grade);
-  let n=0;
-  const section=(t,it)=>{n+=it.length;if(!it.length)return"";
-    return `<section class="tier" id="t-${t.id}" style="--metal:${t.metal}"><div class="g">
-      <div class="thead"><span class="big">${t.big}</span><h3>${t.name}</h3><p>${t.note} · ${it.length} قطعة</p></div>
-      <div class="rail-x">${it.slice(0,more[t.id]||PAGE_STEP).map(card).join("")}</div>${it.length>(more[t.id]||PAGE_STEP)?`<button type="button" class="more-btn" data-more="${t.id}">عرض المزيد (باقي ${it.length-(more[t.id]||PAGE_STEP)})</button>`:""}</div></section>`};
   const fresh=R.filter(r=>isNew(r)&&ok(r)).sort((a,b)=>(b.newAt-a.newAt)||(rank(b)-rank(a)));
   // A search looks through every ring, whatever size or price is chosen above it, and shows one list with the closest first.
-  const html=terms.length?section({id:"search",name:"ابحث عن خاتم",big:"",note:`نتائج «${esc(raw)}»`,metal:"var(--gold)"},searchRings(terms)):section({id:"new",name:"بضاعة جديدة",big:"جديد",note:"نزلت هذا الأسبوع",metal:"var(--gold)"},fresh)+TIERS.map(t=>section(t,R.filter(r=>onShow(r)&&!isNew(r)&&r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a)))).join("");
+  const secs=terms.length?[[{id:"search",name:"ابحث عن خاتم",big:"",note:`نتائج «${esc(raw)}»`,metal:"var(--gold)"},searchRings(terms)]]
+    :[[{id:"new",name:"بضاعة جديدة",big:"جديد",note:"نزلت هذا الأسبوع",metal:"var(--gold)"},fresh],...TIERS.map(t=>[t,R.filter(r=>onShow(r)&&!isNew(r)&&r.t===t.id&&ok(r)).sort((a,b)=>rank(b)-rank(a))])];
+  // The whole list is cut into pages of PER_PAGE rings, counted across its sections, with numbered page buttons under it.
+  const n=secs.reduce((a,[,it])=>a+it.length,0),pages=Math.max(1,Math.ceil(n/PER_PAGE));pg=Math.min(Math.max(1,pg),pages);
+  const from=(pg-1)*PER_PAGE,to=from+PER_PAGE;let at=0;
+  const section=(t,it)=>{const a=at;at+=it.length;const part=it.slice(Math.max(0,from-a),Math.max(0,to-a));if(!part.length)return"";
+    return `<section class="tier" id="t-${t.id}" style="--metal:${t.metal}"><div class="g">
+      <div class="thead"><span class="big">${t.big}</span><h3>${t.name}</h3><p>${t.note} · ${it.length} قطعة</p></div>
+      <div class="rail-x">${part.map(card).join("")}</div></div></section>`};
+  const html=secs.map(([t,it])=>section(t,it)).join("")+pagerHTML(pages);
   const soldOnly=Admin.on&&Admin.showSold;document.body.classList.toggle("sold-only",soldOnly);
   $("list").innerHTML=soldOnly?soldSection():html||`<div class="g"><div class="empty">${terms.length?`ما لكينا خاتم بـ«${esc(raw)}». جرب كلمة ثانية من اسمه أو نقشه، أو راسلنا على الواتساب ونلكالك اللي تريده.`:"ماكو خاتم بهذي المواصفات. وسّع مدى السعر، أو راسلنا على الواتساب ونلكالك اللي تريده."}</div></div>`;
   $("count").textContent=n+" قطعة مطابقة";
 }
-["lo","hi","q"].forEach(id=>$(id).addEventListener("input",()=>{more={};render()}));
+["lo","hi","q"].forEach(id=>$(id).addEventListener("input",()=>{pg=1;render()}));
+// Page buttons: the current page and up to two on each side, with the first and last always there.
+function pagerHTML(pages){if(pages<2)return"";
+  const show=[...new Set([1,pg-2,pg-1,pg,pg+1,pg+2,pages])].filter(p=>p>=1&&p<=pages).sort((a,b)=>a-b);
+  const btns=show.map((p,i)=>(i&&p-show[i-1]>1?`<span class="pg-gap">…</span>`:"")+`<button type="button" class="pg-btn" data-pg="${p}"${p===pg?` aria-current="page"`:""}>${p}</button>`).join("");
+  return `<nav class="pager-n" aria-label="صفحات الخواتم"><div class="g"><p class="pg-note">صفحة ${pg} من ${pages}</p><div class="pg-row">
+    <button type="button" class="pg-btn pg-step" data-pg="${pg-1}"${pg===1?" disabled":""}>السابقة</button>${btns}<button type="button" class="pg-btn pg-step" data-pg="${pg+1}"${pg===pages?" disabled":""}>التالية</button></div></div></nav>`}
+// Going to another page brings the top of the list back under the tab bar.
+function goPage(p,push){pg=p;render();if(push!==false)pushView();
+  const list=$("list"),top=list.getBoundingClientRect().top,stick=$("sizes").getBoundingClientRect().bottom+8;scrollTo({top:scrollY+top-stick,behavior:"instant"})}
 
 // detail sheet
 $("list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList.contains("card"))e.target.click()});
-$("list").addEventListener("click",e=>{const m=e.target.closest("[data-more]");if(m){const id=m.dataset.more;more[id]=(more[id]||PAGE_STEP)+PAGE_STEP;render();return}const c=e.target.closest(".card");if(c)openRing(byId(+c.dataset.id))});
+$("list").addEventListener("click",e=>{const p=e.target.closest("[data-pg]");if(p){if(!p.disabled)goPage(+p.dataset.pg);return}const c=e.target.closest(".card");if(c)openRing(byId(+c.dataset.id))});
 // A link or barcode ending in #ring=13 opens that ring directly. A sold ring still opens, marked sold, so its barcode keeps working as a guarantee.
-function openFromLink(){const o=location.hash.match(/order=([\d,]+)/);if(o){if(!$("order").open)openOrder(o[1]);return}const m=location.hash.match(/ring=(\d+)/);if(!m||$("dlg").open)return;const r=byId(+m[1]-1);if(r)openRing(r)}
+function openFromLink(h){h=typeof h==="string"?h:location.hash;const o=h.match(/order=([\d,]+)/);if(o){if(!$("order").open)openOrder(o[1]);return}const m=h.match(/ring=(\d+)/);if(!m||$("dlg").open)return;const r=byId(+m[1]-1);if(r)openRing(r)}
 // A link ending in #order=2,5,9 shows a whole cart. The owner can finish all of it from here in one go.
 let orderLink="";
 function openOrder(nos){orderLink=nos;const rings=[...new Set(nos.split(",").map(n=>byId(+n-1)))].filter(Boolean),open=rings.filter(r=>!r.sold),sum=open.reduce((a,r)=>a+(r.price||0),0);
   $("orderBox").innerHTML=`<h3>الطلب (${rings.length})</h3>`+(rings.length?rings.map(r=>`<div class="line" data-open="${r.id}"><div class="th">${photo(r)}</div><div>${esc(r.title)}<small class="line-no">رقم ${ringNo(r)}${r.sold?" · تم البيع":""}</small></div>${priceHTML(r)}<span></span></div>`).join(""):`<p style="margin:0;color:var(--dim)">ما لكيت خواتم بهذا الطلب.</p>`)+
   (open.length?`<div class="total"><span>المجموع</span><span>${sum} ألف د.ع · $${toUsd(sum)}</span></div><p class="ship-note"><b>${shipTotal(sum)}</b><br>التوصيل: ${SHIP_FULL}.</p>`:"")+
   (Admin.ledger&&open.length?`<div class="adm-sale-all"><button type="button" class="adm-btn main" data-order="sold">تم شراء الكل (${open.length})</button><button type="button" class="adm-btn" data-order="reserved">حجز الكل</button></div>`:"");
-  if(!$("order").open)$("order").showModal()}
+  if(!$("order").open)$("order").showModal();pushModal("order",nos,"#order="+nos)}
 $("orderX").onclick=()=>$("order").close();
 $("orderBox").addEventListener("click",e=>{const a=e.target.closest("[data-order]");if(a){openSaleOrder(orderLink,a.dataset.order);return}const l=e.target.closest("[data-open]");if(l)openRing(byId(+l.dataset.open))});
 addEventListener("hashchange",openFromLink);
@@ -327,14 +393,14 @@ async function drawQr(r){
 let openId=null;
 const saleBar=r=>Admin.ledger&&!r.sold?`<div class="adm-sale"><b>هل تم الشراء؟</b><button type="button" class="adm-btn main" data-sale="${r.id}" data-kind="sold">تم الشراء</button><button type="button" class="adm-btn" data-sale="${r.id}" data-kind="reserved">حجز</button></div>`:"";
 const WA_ICON=`<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2Z"/></svg>`;
-function openRing(r){const t=T(r.t);openId=r.id;
+function openRing(r){const t=T(r.t);openId=r.id;pushModal("ring",r.id,"#ring="+ringNo(r));
   $("sheet").innerHTML=`${saleBar(r)}<div class="sheet" style="--metal:${t.metal}">${gallery(r)}<div class="tx">
    ${ringLabels(r).length?`<div class="sheet-badges">${isNew(r)?`<span class="new">جديد</span>`:""}${tierLabel(r)?`<span style="border-color:${t.metal};color:${t.metal}">${tierLabel(r)}</span>`:""}${gradeName(r)?`<span>${gradeName(r)}</span>`:""}</div>`:""}
    <h3>${esc(r.title)}</h3><p class="q">${esc(r.q||"")}</p>
    <div class="specs"><dl>${[["رقم الخاتم",ringNo(r)],["النقش",r.nq],["الصياغة",r.sg],["الحجم",gradeName(r)],["القياس",r.size],["الحجر","عقيق يماني خام"],["التوصيل",r.sold?"":SHIP_FULL]].filter(x=>x[1]).map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
    <figure class="qr" id="qrWrap"><img id="qrImg" data-ring="${ringNo(r)}" alt="باركود الخاتم رقم ${ringNo(r)}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="><figcaption>باركود الخاتم</figcaption></figure></div>
    ${r.sold?`<p class="sold-tag">تم البيع</p>`:`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">${priceHTML(r)}
-   <span style="display:flex;gap:8px;flex-wrap:wrap">${addBtn(r)}</span></div>`}
+   <span style="display:flex;gap:8px;flex-wrap:wrap">${addBtn(r)}</span></div>`}${copyBtn(r)}
    <p style="margin:0;color:var(--dim);font-size:13px">أو راسلنا على <span class="num" style="font-size:15px">0775 768 5741</span></p></div></div>${r.sold?"":`<a class="wa-float" href="${wa(r)}" target="_blank" rel="noopener">${WA_ICON}حجز عبر واتساب</a>`}`;
   if(!$("dlg").open)$("dlg").showModal();wireGallery();drawQr(r);
   // A long inscription shows its first lines; «قراءة المزيد» opens the rest, and the details stay right below for those who skip it.
@@ -344,6 +410,36 @@ function openRing(r){const t=T(r.t);openId=r.id;
 $("x").onclick=()=>$("dlg").close();
 $("dlg").addEventListener("close",()=>{if($("dlg").open)return;openId=null;const v=$("vid");if(v)v.pause();$("sheet").innerHTML=""});
 $("dlg").addEventListener("click",e=>{if(e.target===$("dlg"))$("dlg").close()});
+
+// The owner's «نسخ رابط الخاتم» in an open ring, to paste into a chat when a customer asks about it.
+const copyBtn=r=>Admin.on?`<button type="button" class="adm-btn copy-link" data-copy="${r.id}">نسخ رابط الخاتم</button>`:"";
+// The clipboard API needs https, so a plain page falls back to selecting hidden text and copying it.
+async function copyText(t){try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(t);return true}}catch(e){}
+  const a=document.createElement("textarea");a.value=t;a.setAttribute("readonly","");a.style.cssText="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0";
+  (document.querySelector("dialog[open]")||document.body).append(a);a.focus();a.select();a.setSelectionRange(0,t.length);let ok=false;try{ok=document.execCommand("copy")}catch(e){}a.remove();return ok}
+$("sheet").addEventListener("click",async e=>{const b=e.target.closest("[data-copy]");if(!b)return;const r=byId(+b.dataset.copy),link=ringLink(r);
+  if(await copyText(link)){b.textContent="تم النسخ ✓";b.classList.add("done");setTimeout(()=>{b.textContent="نسخ رابط الخاتم";b.classList.remove("done")},2200)}
+  else toast("ما انسخ تلقائياً، انسخه من هنا: "+link,true)});
+
+// Phone back button: each list (size tab and page) and each open window is a step in the browser's history,
+// so «رجوع» closes the ring first, then goes back through the lists, and only then leaves the site.
+const plainUrl=()=>location.pathname+location.search;
+const MODALS=[["dlg","ring"],["cart","cart"],["order","order"]];
+let popping=false;
+const view=()=>({app:1,tab,pg});
+function pushView(){if(popping)return;history.pushState(view(),"",plainUrl())}
+function pushModal(key,val,url){if(popping)return;const s=history.state&&history.state.app?history.state:null;
+  if(s&&s[key]!=null){history.replaceState({...s,[key]:val},"",url||location.href);return}
+  history.pushState({...view(),...(s?{ring:s.ring,cart:s.cart,order:s.order}:{}),[key]:val},"",url||plainUrl())}
+MODALS.forEach(([id,key])=>$(id).addEventListener("close",()=>{const s=history.state;if(!popping&&s&&s.app&&s[key]!=null)history.back()}));
+addEventListener("popstate",e=>{const s=e.state;if(!s||!s.app)return;popping=true;
+  try{if(s.tab!==tab)setTab(s.tab,null,false);
+    if(s.pg!==pg){pg=s.pg;render()}
+    MODALS.forEach(([id,key])=>{if(s[key]==null&&$(id).open)$(id).close()});
+    if(s.order!=null&&!$("order").open)openOrder(s.order);
+    if(s.cart!=null&&!$("cart").open){syncCart();$("cart").showModal()}
+    if(s.ring!=null&&(!$("dlg").open||openId!==s.ring)){const r=byId(s.ring);if(r)openRing(r)}
+  }finally{popping=false}});
 
 // admin mode. Only someone holding a GitHub key for this site's repositories can save; everyone else never sees these controls.
 function adminRow(r){if(!Admin.on)return"";const second=!r.sold&&Admin.ledger?`<button type="button" class="adm-btn" data-sale="${r.id}" data-kind="sold">تم الشراء</button>`:`<button type="button" class="adm-btn" data-sold="${r.id}">${r.sold?"رجّعه للموقع":"مبيوع"}</button>`;return `<div class="adm-row"><button type="button" class="adm-btn" data-edit="${r.id}">تعديل</button>${second}</div>`}
@@ -632,4 +728,8 @@ function tickSales(){if(document.hidden)return;const list=document.querySelector
   if(done&&endSales(R)){R.forEach(r=>{r.t=tierOf(r)});render();syncCart();if($("dlg").open&&openId!=null)openRing(byId(openId));if($("order").open)openOrder(orderLink)}}
 setInterval(tickSales,1000);
 
-chips();nav();render();syncCart();openFromLink();startVisitPings();startAdmin().then(()=>{if(Admin.on)startVisitCounts();openFromLink()});
+chips();nav();render();syncCart();
+// A link straight to a ring or an order still gets the list underneath it, so «رجوع» lands on the site's list and not outside it.
+const startHash=location.hash;
+history.replaceState(view(),"",/(ring|order)=/.test(startHash)?plainUrl():location.href);
+openFromLink(startHash);startVisitPings();startAdmin().then(()=>{if(Admin.on)startVisitCounts();openFromLink(startHash)});
