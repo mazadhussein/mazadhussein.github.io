@@ -6,17 +6,7 @@ const MARKUP=String.raw`<header class="top"><div class="g">
   <a class="pill-wa" href="https://wa.me/9647757685741" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2Z"/></svg>احجز واتساب</a>
 </div></header>
 
-<section class="hero" id="top"><div class="g">
-  <div>
-    <div class="eyebrow">عقيق يماني · نقش يدوي · صياغة بحرينية</div>
-    <h1>عقيقٌ يليق بك<em>ونقشٌ يدوم</em></h1>
-    <p class="lede">اختار خاتمك، احجزه بالواتساب، ويوصلك ويا باركود ضمان.</p>
-    <div class="cta">
-      <a class="pill-wa" href="#shop">تصفّح الخواتم</a>
-      <a class="ghost" href="https://wa.me/9647757685741" target="_blank" rel="noopener">اسأل عن قطعة</a>
-    </div>
-    <div class="stats" id="stats"></div>
-  </div>
+<section class="hero top-ad" id="top"><div class="g">
   <figure class="adsq" style="margin:0" aria-label="خواتم مختارة">
     <div class="ad-box">
       <div class="ad-track" id="adTrack"></div>
@@ -49,6 +39,15 @@ const MARKUP=String.raw`<header class="top"><div class="g">
 </div></section>
 
 <main id="list"></main>
+
+<section class="hero about" aria-label="عن خواتم العقيق"><div class="g"><div>
+  <div class="eyebrow">عقيق يماني · نقش يدوي · صياغة بحرينية</div>
+  <h1>عقيقٌ يليق بك<em>ونقشٌ يدوم</em></h1>
+  <p class="lede">اختار خاتمك، احجزه بالواتساب، ويوصلك ويا باركود ضمان.</p>
+  <div class="stats" id="stats"></div>
+</div></div></section>
+
+<a class="wa-fab" href="https://wa.me/9647757685741" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2Z"/></svg>حجز عبر واتساب</a>
 
 <dialog id="cart"><button class="x" type="button" id="cartX" aria-label="إغلاق">×</button><div class="cart-box" id="cartBox"></div></dialog>
 
@@ -216,7 +215,7 @@ const adPrice=r=>r.price!=null?`${onSale(r)?`<s>${r.was}</s>`:""}${r.price}<smal
 $("adTrack").innerHTML=ads.map((r,i)=>`<button type="button" class="ad-slide" data-ad="${r.id}" aria-label="${esc(r.title)}">
   <img src="${esc(photoUrl(r))}" alt="${esc(r.title)}"${i?` loading="lazy"`:""}>
   <span class="ad-badges">${ringLabels(r).map(l=>`<i${l==="جديد"?` class="new"`:""}>${l}</i>`).join("")}</span>
-  <span class="ad-cap"><b class="ad-t">${esc(r.title)}</b><span class="ad-row"><span class="ad-p">${adPrice(r)}</span><span class="ad-go">شوف الخاتم</span></span></span></button>`).join("");
+  <span class="ad-cap"><b class="ad-t">${esc(r.title)}</b><span class="ad-row"><span class="ad-p">${adPrice(r)}</span></span></span></button>`).join("");
 $("adDots").innerHTML=ads.map((r,i)=>`<button type="button" data-dot="${i}" aria-label="خاتم ${i+1}"></button>`).join("");
 const adTr=$("adTrack");let adI=0,adHold=0;
 // Right-to-left scrolling counts leftwards as negative in today's browsers.
