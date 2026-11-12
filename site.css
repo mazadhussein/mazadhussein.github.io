@@ -29,7 +29,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .brand img{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--gold)}
 .cart-btn{position:relative;font:600 14px var(--kufi);background:var(--gold);color:#1a1000;border:0;border-radius:999px;padding:9px 16px;cursor:pointer;white-space:nowrap}
 .cart-btn b{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:50%;background:#1a1000;color:var(--gold);margin-inline-start:6px;font-variant-numeric:tabular-nums}
-@media (max-width:760px){.cart-btn{margin-inline-start:auto}.top .pill-wa{display:none}}
+@media (max-width:760px){.cart-btn{margin-inline-start:auto}}
+/* Phones keep the WhatsApp button in the header too, smaller, since it is the only one on the main page. */
+@media (max-width:480px){.top .g{gap:8px}.brand{font-size:19px;gap:7px}.brand img{width:36px;height:36px}.cart-btn{padding:7px 12px;font-size:13px}.top .pill-wa{padding:7px 10px;font-size:13px;gap:5px}.top .pill-wa svg{width:16px;height:16px}}
+@media (max-width:360px){.top .g{gap:6px}.brand{font-size:15px;gap:5px}.brand img{width:30px;height:30px}.cart-btn{padding:6px 9px;font-size:12px}.top .pill-wa{padding:6px 8px;font-size:12px}}
 .add{font:600 13px var(--kufi);background:transparent;color:var(--gold);border:1px solid var(--gold);border-radius:999px;padding:5px 12px;cursor:pointer;white-space:nowrap}
 .add[aria-pressed="true"]{background:var(--gold);color:#1a1000}
 .cart-box{padding:26px;display:flex;flex-direction:column;gap:14px}
@@ -46,7 +49,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .nav a:hover{color:var(--ink);background:var(--case)}
 .pill-wa{display:inline-flex;align-items:center;gap:8px;background:var(--wa);color:#04170c;font-weight:600;text-decoration:none;padding:9px 18px;border-radius:999px;white-space:nowrap}
 .pill-wa svg{width:18px;height:18px}
-@media (max-width:760px){.nav{display:none}.top .pill-wa{margin-inline-start:auto;padding:7px 14px;font-size:14px}}
+@media (max-width:760px){.nav{display:none}}
 
 /* hero */
 .hero{position:relative;isolation:isolate;overflow:hidden;background:
@@ -364,11 +367,6 @@ body.sold-only .sizes,body.sold-only .swipe-hint{display:none}
 .hero.about .lede{margin-inline:auto}
 .hero.about .stats{justify-content:center}
 .hero.about .stats div{align-items:center}
-/* A WhatsApp button that stays on screen while the page scrolls. A ring's own booking button takes over when a ring is open. */
-.wa-fab{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));inset-inline-start:16px;z-index:35;display:flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;background:var(--wa);color:#04170c;font:700 15px var(--body);white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55);text-decoration:none}
-.wa-fab svg{width:22px;height:22px;flex:none}
-body.is-admin .wa-fab{bottom:calc(124px + env(safe-area-inset-bottom,0px))}
-body:has(dialog[open]) .wa-fab{display:none}
 
 /* Numbered pages under the list, and the owner's copy-link button (preview) */
 .pager-n{padding:26px 0 8px}
